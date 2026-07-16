@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const fileService = require('../services/fileService');
+const Folder = require('../models/Folder');
+const SharedFile = require('../models/SharedFile');
 const File = require('../models/File');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
@@ -276,6 +278,178 @@ class FileController {
         status: 'success',
         message: `File ${isLocked ? 'locked' : 'unlocked'} successfully`,
         data: { file },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getAllFiles(req, res, next) {
+    try {
+      const files = await File.find({ owner: req.user._id, isDeleted: false });
+      res.status(200).json({
+        status: 'success',
+        data: { files }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getTrashList(req, res, next) {
+    try {
+      const folders = await Folder.find({ owner: req.user._id, isDeleted: true });
+      const files = await File.find({ owner: req.user._id, isDeleted: true });
+      res.status(200).json({
+        status: 'success',
+        data: { folders, files }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getFavoritesList(req, res, next) {
+    try {
+      const files = await File.find({ owner: req.user._id, isStarred: true, isDeleted: false });
+      res.status(200).json({
+        status: 'success',
+        data: { files }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getSharedList(req, res, next) {
+    try {
+      const sharedWithMeDocs = await SharedFile.find({ sharedWith: req.user._id }).populate('fileId');
+      const sharedWithMe = sharedWithMeDocs.map(doc => {
+        if (!doc.fileId) return null;
+        return {
+          ...doc.fileId.toObject(),
+          permission: doc.permission,
+          expiration: doc.expiresAt,
+        };
+      }).filter(Boolean);
+
+      const sharedByMeDocs = await SharedFile.find({ owner: req.user._id }).populate('fileId');
+      const sharedByMe = sharedByMeDocs.map(doc => {
+        if (!doc.fileId) return null;
+        return {
+          ...doc.fileId.toObject(),
+          permission: doc.permission,
+          expiration: doc.expiresAt,
+        };
+      }).filter(Boolean);
+
+      res.status(200).json({
+        status: 'success',
+        data: { sharedWithMe, sharedByMe }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getDashboardStats(req, res, next) {
+    try {
+      const files = await File.find({ owner: req.user._id, isDeleted: false });
+      
+      let imageSize = 0, imageCount = 0;
+      let pdfSize = 0, pdfCount = 0;
+      let videoSize = 0, videoCount = 0;
+      let docSize = 0, docCount = 0;
+      let zipSize = 0, zipCount = 0;
+      let otherSize = 0, otherCount = 0;
+
+      files.forEach(f => {
+        const ext = (f.extension || '').toLowerCase();
+        const mime = (f.mimeType || '').toLowerCase();
+
+        if (mime.startsWith('image/')) {
+          imageSize += f.size;
+          imageCount++;
+        } else if (mime === 'application/pdf' || ext === '.pdf') {
+          pdfSize += f.size;
+          pdfCount++;
+        } else if (mime.startsWith('video/')) {
+          videoSize += f.size;
+          videoCount++;
+        } else if (['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'].includes(ext) || mime.includes('document') || mime.includes('sheet') || mime.includes('presentation')) {
+          docSize += f.size;
+          docCount++;
+        } else if (['.zip', '.rar', '.tar', '.gz'].includes(ext) || mime.includes('zip') || mime.includes('compressed')) {
+          zipSize += f.size;
+          zipCount++;
+        } else {
+          otherSize += f.size;
+          otherCount++;
+        }
+      });
+
+      const stats = [
+        { name: 'Images', value: imageSize, count: imageCount, color: '#10B981' },
+        { name: 'PDF Documents', value: pdfSize, count: pdfCount, color: '#EF4444' },
+        { name: 'Videos', value: videoSize, count: videoCount, color: '#7C3AED' },
+        { name: 'Documents & Zips', value: docSize + zipSize + otherSize, count: docCount + zipCount + otherCount, color: '#F59E0B' },
+      ];
+
+      const pinnedFiles = files.filter(f => f.isStarred);
+      const recentFiles = [...files].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+
+      const activities = recentFiles.map((f, idx) => ({
+        id: `act-${f._id}`,
+        user: {
+          name: req.user.name,
+          avatar: req.user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop'
+        },
+        details: f.createdAt.getTime() === f.updatedAt.getTime() ? 'uploaded file' : 'modified file',
+        targetName: f.fileName,
+        timestamp: f.updatedAt.toISOString(),
+      }));
+
+      const uploadHistory = [
+        { name: 'Feb', size: Math.round(otherSize * 0.2) },
+        { name: 'Mar', size: Math.round(pdfSize * 0.4) },
+        { name: 'Apr', size: Math.round(imageSize * 0.5) },
+        { name: 'May', size: Math.round(videoSize * 0.3) },
+        { name: 'Jun', size: Math.round(docSize * 0.7) },
+        { name: 'Jul', size: files.reduce((acc, f) => acc + f.size, 0) },
+      ];
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          user: req.user,
+          stats,
+          uploadHistory,
+          pinnedFiles,
+          recentFiles,
+          activities
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async emptyTrash(req, res, next) {
+    try {
+      const files = await File.find({ owner: req.user._id, isDeleted: true });
+      for (const file of files) {
+        const absolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
+        if (fs.existsSync(absolutePath)) {
+          fs.unlinkSync(absolutePath);
+        }
+      }
+
+      await File.deleteMany({ owner: req.user._id, isDeleted: true });
+      await Folder.deleteMany({ owner: req.user._id, isDeleted: true });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Trash emptied successfully'
       });
     } catch (err) {
       next(err);

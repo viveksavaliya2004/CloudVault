@@ -10,6 +10,15 @@ router.use(protect);
 
 router.post('/upload/single', upload.single('file'), fileController.uploadSingleFile);
 router.post('/upload/multiple', upload.array('files', 10), fileController.uploadMultipleFiles);
+
+// Listings and custom queries (above dynamic /:id parameter)
+router.get('/list/all', fileController.getAllFiles);
+router.get('/list/trash', fileController.getTrashList);
+router.get('/list/favorites', fileController.getFavoritesList);
+router.get('/list/shared', fileController.getSharedList);
+router.get('/list/dashboard-stats', fileController.getDashboardStats);
+router.delete('/trash/empty', fileController.emptyTrash);
+
 router.get('/:id', fileController.getFileMetadata);
 router.get('/:id/download', fileController.downloadFile);
 router.get('/:id/view', fileController.viewFileInline);

@@ -183,7 +183,7 @@ class FileService {
       throw new AppError('File not found', 404);
     }
 
-    file.isFavourite = !!isFavourite;
+    file.isFavourite = isFavourite === undefined ? !file.isFavourite : !!isFavourite;
     await file.save();
     return file;
   }
@@ -194,7 +194,7 @@ class FileService {
       throw new AppError('File not found', 404);
     }
 
-    file.isStarred = !!isStarred;
+    file.isStarred = isStarred === undefined ? !file.isStarred : !!isStarred;
     await file.save();
     return file;
   }
@@ -205,7 +205,7 @@ class FileService {
       throw new AppError('File not found', 404);
     }
 
-    file.isArchived = !!isArchived;
+    file.isArchived = isArchived === undefined ? !file.isArchived : !!isArchived;
     await file.save();
     return file;
   }
@@ -216,7 +216,7 @@ class FileService {
       throw new AppError('File not found', 404);
     }
 
-    file.isLocked = !!isLocked;
+    file.isLocked = isLocked === undefined ? !file.isLocked : !!isLocked;
     await file.save();
     return file;
   }

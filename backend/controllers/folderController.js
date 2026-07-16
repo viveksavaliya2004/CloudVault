@@ -105,6 +105,19 @@ class FolderController {
       next(err);
     }
   }
+
+  async getAllFolders(req, res, next) {
+    try {
+      const Folder = require('../models/Folder');
+      const folders = await Folder.find({ owner: req.user._id, isDeleted: false });
+      res.status(200).json({
+        status: 'success',
+        data: { folders },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new FolderController();

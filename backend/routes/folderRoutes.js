@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/', folderController.createFolder);
+router.get('/', folderController.getAllFolders);
 router.get('/:id/contents', folderController.getFolderContents);
 router.patch('/:id/rename', folderController.renameFolder);
 router.patch('/:id/move', folderController.moveFolder);
