@@ -14,11 +14,12 @@ class FileController {
         return next(new AppError('Please provide a file to upload', 400));
       }
 
-      const file = await fileService.processUpload(
+      let file = await fileService.processUpload(
         req.user._id,
         req.file,
         req.body.folderId
       );
+      file = await File.findById(file._id).populate('owner', 'name');
 
       res.status(201).json({
         status: 'success',
@@ -39,11 +40,12 @@ class FileController {
       const files = [];
       try {
         for (const file of req.files) {
-          const fileDoc = await fileService.processUpload(
+          let fileDoc = await fileService.processUpload(
             req.user._id,
             file,
             req.body.folderId
           );
+          fileDoc = await File.findById(fileDoc._id).populate('owner', 'name');
           files.push(fileDoc);
         }
       } catch (uploadError) {
@@ -286,7 +288,7 @@ class FileController {
 
   async getAllFiles(req, res, next) {
     try {
-      const files = await File.find({ owner: req.user._id, isDeleted: false });
+      const files = await File.find({ owner: req.user._id, isDeleted: false }).populate('owner', 'name');
       res.status(200).json({
         status: 'success',
         data: { files }
@@ -298,8 +300,8 @@ class FileController {
 
   async getTrashList(req, res, next) {
     try {
-      const folders = await Folder.find({ owner: req.user._id, isDeleted: true });
-      const files = await File.find({ owner: req.user._id, isDeleted: true });
+      const folders = await Folder.find({ owner: req.user._id, isDeleted: true }).populate('owner', 'name');
+      const files = await File.find({ owner: req.user._id, isDeleted: true }).populate('owner', 'name');
       res.status(200).json({
         status: 'success',
         data: { folders, files }
@@ -311,7 +313,7 @@ class FileController {
 
   async getFavoritesList(req, res, next) {
     try {
-      const files = await File.find({ owner: req.user._id, isStarred: true, isDeleted: false });
+      const files = await File.find({ owner: req.user._id, isStarred: true, isDeleted: false }).populate('owner', 'name');
       res.status(200).json({
         status: 'success',
         data: { files }
@@ -323,7 +325,10 @@ class FileController {
 
   async getSharedList(req, res, next) {
     try {
-      const sharedWithMeDocs = await SharedFile.find({ sharedWith: req.user._id }).populate('fileId');
+      const sharedWithMeDocs = await SharedFile.find({ sharedWith: req.user._id }).populate({
+        path: 'fileId',
+        populate: { path: 'owner', select: 'name' }
+      });
       const sharedWithMe = sharedWithMeDocs.map(doc => {
         if (!doc.fileId) return null;
         return {
@@ -333,7 +338,10 @@ class FileController {
         };
       }).filter(Boolean);
 
-      const sharedByMeDocs = await SharedFile.find({ owner: req.user._id }).populate('fileId');
+      const sharedByMeDocs = await SharedFile.find({ owner: req.user._id }).populate({
+        path: 'fileId',
+        populate: { path: 'owner', select: 'name' }
+      });
       const sharedByMe = sharedByMeDocs.map(doc => {
         if (!doc.fileId) return null;
         return {
@@ -354,8 +362,8 @@ class FileController {
 
   async getDashboardStats(req, res, next) {
     try {
-      const files = await File.find({ owner: req.user._id, isDeleted: false });
-      
+      const files = await File.find({ owner: req.user._id, isDeleted: false }).populate('owner', 'name');
+
       let imageSize = 0, imageCount = 0;
       let pdfSize = 0, pdfCount = 0;
       let videoSize = 0, videoCount = 0;
@@ -450,6 +458,22 @@ class FileController {
       res.status(200).json({
         status: 'success',
         message: 'Trash emptied successfully'
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async duplicateFile(req, res, next) {
+    try {
+      const { id } = req.params;
+      let file = await fileService.duplicateFile(req.user._id, id);
+      file = await File.findById(file._id).populate('owner', 'name');
+
+      res.status(201).json({
+        status: 'success',
+        message: 'File duplicated successfully',
+        data: { file }
       });
     } catch (err) {
       next(err);

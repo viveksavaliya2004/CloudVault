@@ -12,6 +12,16 @@ export const useDashboardStatsQuery = () => {
   });
 };
 
+export const useAllFilesQuery = () => {
+  return useQuery({
+    queryKey: ['allFilesList'],
+    queryFn: async () => {
+      const response = await apiService.files.getAll();
+      return response.data.files || [];
+    }
+  });
+};
+
 export const useUploadFileMutation = () => {
   const queryClient = useQueryClient();
   const { addToast } = useToast();

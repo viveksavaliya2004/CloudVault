@@ -109,7 +109,7 @@ class FolderController {
   async getAllFolders(req, res, next) {
     try {
       const Folder = require('../models/Folder');
-      const folders = await Folder.find({ owner: req.user._id, isDeleted: false });
+      const folders = await Folder.find({ owner: req.user._id, isDeleted: false }).populate('owner', 'name');
       res.status(200).json({
         status: 'success',
         data: { folders },

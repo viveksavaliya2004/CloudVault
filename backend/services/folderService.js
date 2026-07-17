@@ -18,8 +18,8 @@ class FolderService {
       if (!parentFolder) {
         throw new AppError('Parent folder not found', 404);
       }
-      calculatedPath = parentFolder.path === '/' 
-        ? `/${parentFolder.name}` 
+      calculatedPath = parentFolder.path === '/'
+        ? `/${parentFolder.name}`
         : `${parentFolder.path}/${parentFolder.name}`;
       parentId = parentFolder._id;
     }
@@ -180,13 +180,13 @@ class FolderService {
       owner: userId,
       parentFolder: parentFolderId,
       isDeleted: false,
-    });
+    }).populate('owner', 'name');
 
     const files = await File.find({
       owner: userId,
       folderId: parentFolderId,
       isDeleted: false,
-    });
+    }).populate('owner', 'name');
 
     return {
       folder: currentFolder,

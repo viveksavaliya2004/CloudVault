@@ -28,13 +28,30 @@ const mapFolder = (f) => {
   };
 };
 
+const getFileType = (ext, mime) => {
+  const extension = (ext || '').replace(/^\./, '').toLowerCase();
+  const mimeType = (mime || '').toLowerCase();
+
+  if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'svg', 'gif', 'webp'].includes(extension)) return 'image';
+  if (mimeType === 'application/pdf' || extension === 'pdf') return 'pdf';
+  if (mimeType.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv'].includes(extension)) return 'video';
+  if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(extension) || mimeType.includes('document') || mimeType.includes('sheet') || mimeType.includes('presentation')) return 'document';
+  if (['zip', 'rar', 'tar', 'gz'].includes(extension) || mimeType.includes('zip') || mimeType.includes('compressed')) return 'zip';
+  if (mimeType.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(extension)) return 'audio';
+  return 'other';
+};
+
 const mapFile = (f) => {
   if (!f) return f;
   return {
     ...f,
     id: f._id,
+    name: f.fileName || f.name || f.originalName || 'Untitled File',
+    type: f.type || getFileType(f.extension, f.mimeType),
     parentFolderId: f.folderId,
-    owner: f.owner || { name: 'Owner', email: 'owner@cloudvault.com' },
+    isFavorite: f.isFavourite || f.isFavorite || false,
+    isPinned: f.isStarred || f.isPinned || false,
+    owner: f.owner && typeof f.owner === 'object' ? f.owner : { name: 'Owner', email: 'owner@cloudvault.com' },
   };
 };
 
@@ -281,6 +298,17 @@ export const apiService = {
 
   // File Operations
   files: {
+    getAll: async () => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: { files: mockDB.getMockFiles().filter(f => !f.isDeleted) } };
+      }
+      const response = await api.get('/files/list/all');
+      if (response.data && response.data.data) {
+        response.data.files = (response.data.data.files || []).map(mapFile);
+      }
+      return response;
+    },
     upload: async (file, parentFolderId, onProgress) => {
       if (USE_MOCK) {
         const totalSteps = 10;
@@ -415,9 +443,11 @@ export const apiService = {
         const copied = mockDB.duplicateMockFile(id);
         return { data: copied };
       }
-      await delay(400);
-      const copied = mockDB.duplicateMockFile(id);
-      return { data: copied };
+      const response = await api.post(`/files/${id}/duplicate`);
+      if (response.data && response.data.data) {
+        response.data = mapFile(response.data.data.file);
+      }
+      return response;
     },
     download: async (id, name) => {
       if (USE_MOCK) {

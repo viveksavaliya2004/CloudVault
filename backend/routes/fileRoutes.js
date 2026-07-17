@@ -29,5 +29,6 @@ router.patch('/:id/favourite', fileController.toggleFavourite);
 router.patch('/:id/star', fileController.toggleStar);
 router.patch('/:id/archive', fileController.toggleArchive);
 router.patch('/:id/lock', fileController.toggleLock);
+router.post('/:id/duplicate', fileController.duplicateFile);
 
 module.exports = router;

@@ -20,7 +20,8 @@ import {
   useToggleArchiveMutation,
   useMoveFileMutation,
   useDuplicateFileMutation,
-  useDownloadFileMutation
+  useDownloadFileMutation,
+  useAllFilesQuery
 } from '../hooks/useFiles';
 import { Breadcrumb, EmptyState, ErrorState } from '../components/UI';
 import { FolderCard } from '../components/FolderCard';
@@ -41,6 +42,7 @@ export const MyFiles = () => {
 
   const { data: contents, isLoading, isError, refetch } = useFolderContentsQuery(folderId);
   const { data: allFolders = [] } = useAllFoldersQuery();
+  const { data: allFiles = [] } = useAllFilesQuery();
 
   const createFolderMutation = useCreateFolderMutation();
   const renameFolderMutation = useRenameFolderMutation();
@@ -159,11 +161,8 @@ export const MyFiles = () => {
   let renderedFolders = contents.folders;
 
   if (searchFilter) {
-    const allFiles = JSON.parse(localStorage.getItem('cloudvault_files') || '[]');
-    const foldersList = JSON.parse(localStorage.getItem('cloudvault_folders') || '[]');
-
     renderedFiles = allFiles.filter(f => !f.isDeleted && f.name.toLowerCase().includes(searchFilter.toLowerCase()));
-    renderedFolders = foldersList.filter(f => !f.isDeleted && f.name.toLowerCase().includes(searchFilter.toLowerCase()));
+    renderedFolders = allFolders.filter(f => !f.isDeleted && f.name.toLowerCase().includes(searchFilter.toLowerCase()));
   }
 
   if (typeFilter !== 'all') {

@@ -9,6 +9,8 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   const [queue, setQueue] = useState([]);
   const uploadMutation = useUploadFileMutation();
   const fileInputRef = useRef(null);
+  const queueRef = useRef([]);
+  queueRef.current = queue;
 
   // Clear queue on close
   useEffect(() => {
@@ -43,23 +45,11 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
     }
   };
 
-  const addFilesToQueue = (files) => {
-    const newItems = files.map(file => ({
-      id: Math.random().toString(36).substring(2, 9),
-      file,
-      progress: 0,
-      status: 'pending'
-    }));
-
-    setQueue(prev => [...prev, ...newItems]);
-  };
-
-  // Trigger uploads sequentially
-  useEffect(() => {
-    const pendingItem = queue.find(item => item.status === 'pending');
+  const startNextUpload = () => {
+    const pendingItem = queueRef.current.find(item => item.status === 'pending');
     if (!pendingItem) return;
 
-    setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'uploading' } : item));
+    setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'uploading', progress: 0 } : item));
 
     uploadMutation.mutate({
       file: pendingItem.file,
@@ -70,15 +60,41 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
     }, {
       onSuccess: () => {
         setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'success', progress: 100 } : item));
+        setTimeout(startNextUpload, 50);
       },
-      onError: () => {
-        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'error', errorMsg: 'Connection Timeout' } : item));
+      onError: (err) => {
+        const errorMsg = err?.response?.data?.message || 'Upload failed';
+        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'error', errorMsg } : item));
+        setTimeout(startNextUpload, 50);
       }
     });
-  }, [queue, uploadMutation, currentFolderId]);
+  };
+
+  const addFilesToQueue = (files) => {
+    const newItems = files.map(file => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      progress: 0,
+      status: 'pending'
+    }));
+
+    const isCurrentlyUploading = queueRef.current.some(item => item.status === 'uploading');
+
+    setQueue(prev => [...prev, ...newItems]);
+
+    if (!isCurrentlyUploading) {
+      setTimeout(startNextUpload, 50);
+    }
+  };
 
   const handleRetry = (id) => {
+    const isCurrentlyUploading = queueRef.current.some(item => item.status === 'uploading');
+
     setQueue(prev => prev.map(item => item.id === id ? { ...item, status: 'pending', progress: 0 } : item));
+
+    if (!isCurrentlyUploading) {
+      setTimeout(startNextUpload, 50);
+    }
   };
 
   const handleRemove = (id) => {
@@ -87,6 +103,16 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
 
   const isUploading = queue.some(item => item.status === 'uploading');
   const allCompleted = queue.length > 0 && queue.every(item => item.status === 'success');
+
+  // Auto-close modal after successful upload
+  useEffect(() => {
+    if (allCompleted) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [allCompleted, onClose]);
 
   return (
     <AnimatePresence>
@@ -143,6 +169,7 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                   type="file"
                   multiple
                   onChange={handleFileChange}
+                  onClick={(e) => e.stopPropagation()}
                   className="hidden"
                 />
                 <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-premium rounded-xl text-slate-400 dark:text-slate-500 mb-3 hover-scale">
