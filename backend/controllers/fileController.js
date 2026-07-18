@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const fileService = require('../services/fileService');
 const Folder = require('../models/Folder');
 const SharedFile = require('../models/SharedFile');
@@ -200,7 +201,7 @@ class FileController {
   async renameFile(req, res, next) {
     try {
       const { id } = req.params;
-      const { name } = req.body;
+      const { name } = req.body || {};
 
       if (!name || !name.trim()) {
         return next(new AppError('New file name is required', 400));
@@ -221,7 +222,7 @@ class FileController {
   async toggleFavourite(req, res, next) {
     try {
       const { id } = req.params;
-      const { isFavourite } = req.body;
+      const { isFavourite } = req.body || {};
 
       const file = await fileService.toggleFavourite(req.user._id, id, isFavourite);
 
@@ -238,7 +239,7 @@ class FileController {
   async toggleStar(req, res, next) {
     try {
       const { id } = req.params;
-      const { isStarred } = req.body;
+      const { isStarred } = req.body || {};
 
       const file = await fileService.toggleStar(req.user._id, id, isStarred);
 
@@ -255,7 +256,7 @@ class FileController {
   async toggleArchive(req, res, next) {
     try {
       const { id } = req.params;
-      const { isArchived } = req.body;
+      const { isArchived } = req.body || {};
 
       const file = await fileService.toggleArchive(req.user._id, id, isArchived);
 
@@ -272,7 +273,7 @@ class FileController {
   async toggleLock(req, res, next) {
     try {
       const { id } = req.params;
-      const { isLocked } = req.body;
+      const { isLocked } = req.body || {};
 
       const file = await fileService.toggleLock(req.user._id, id, isLocked);
 
@@ -313,7 +314,7 @@ class FileController {
 
   async getFavoritesList(req, res, next) {
     try {
-      const files = await File.find({ owner: req.user._id, isStarred: true, isDeleted: false }).populate('owner', 'name');
+      const files = await File.find({ owner: req.user._id, isFavourite: true, isDeleted: false }).populate('owner', 'name');
       res.status(200).json({
         status: 'success',
         data: { files }
@@ -410,7 +411,7 @@ class FileController {
         id: `act-${f._id}`,
         user: {
           name: req.user.name,
-          avatar: req.user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop'
+          avatar: req.user.avatar || ''
         },
         details: f.createdAt.getTime() === f.updatedAt.getTime() ? 'uploaded file' : 'modified file',
         targetName: f.fileName,
@@ -426,15 +427,42 @@ class FileController {
         { name: 'Jul', size: files.reduce((acc, f) => acc + f.size, 0) },
       ];
 
+      // Day 8 additions
+      const favouriteFiles = await File.find({ owner: req.user._id, isFavourite: true, isDeleted: false }).populate('owner', 'name').limit(5);
+
+      const trashFiles = await File.find({ owner: req.user._id, isDeleted: true }, 'size');
+      const trashFilesCount = trashFiles.length;
+      const trashFoldersCount = await Folder.countDocuments({ owner: req.user._id, isDeleted: true });
+      const trashSize = trashFiles.reduce((acc, f) => acc + f.size, 0);
+
+      const activeFoldersCount = await Folder.countDocuments({ owner: req.user._id, isDeleted: false });
+      const recentUploads = [...files].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+
       res.status(200).json({
         status: 'success',
         data: {
           user: req.user,
+          storageUsed: req.user.storageUsed,
+          storageRemaining: Math.max(0, req.user.storageLimit - req.user.storageUsed),
           stats,
           uploadHistory,
           pinnedFiles,
           recentFiles,
-          activities
+          recentUploads,
+          favouriteFiles,
+          recycleBin: {
+            filesCount: trashFilesCount,
+            foldersCount: trashFoldersCount,
+            totalSize: trashSize
+          },
+          activities,
+          counts: {
+            files: files.length,
+            folders: activeFoldersCount,
+            storageUsed: req.user.storageUsed,
+            storageRemaining: Math.max(0, req.user.storageLimit - req.user.storageUsed),
+            storageLimit: req.user.storageLimit
+          }
         }
       });
     } catch (err) {
@@ -475,6 +503,210 @@ class FileController {
         message: 'File duplicated successfully',
         data: { file }
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async shareFile(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { email, isPublic, permission, expiresAt, password } = req.body || {};
+
+      const file = await File.findOne({ _id: id, owner: req.user._id });
+      if (!file) {
+        return next(new AppError('File not found or access denied', 404));
+      }
+
+      let sharedWith = null;
+      if (email) {
+        const targetUser = await User.findOne({ email: email.trim().toLowerCase() });
+        if (!targetUser) {
+          return next(new AppError('No user found with this email address', 404));
+        }
+        if (targetUser._id.toString() === req.user._id.toString()) {
+          return next(new AppError('You cannot share a file with yourself', 400));
+        }
+        sharedWith = targetUser._id;
+      } else if (!isPublic) {
+        return next(new AppError('Please provide an email to share or select public sharing', 400));
+      }
+
+      let hashedPassword = null;
+      if (password && password.trim() !== '') {
+        hashedPassword = await bcrypt.hash(password.trim(), 10);
+      }
+
+      // Check if a share configuration already exists for this file and user
+      let share = await SharedFile.findOne({
+        fileId: id,
+        owner: req.user._id,
+        sharedWith: sharedWith
+      });
+
+      if (share) {
+        share.permission = permission || 'read';
+        share.expiresAt = expiresAt ? new Date(expiresAt) : null;
+        if (password !== undefined) {
+          share.password = hashedPassword;
+        }
+        await share.save();
+      } else {
+        share = await SharedFile.create({
+          fileId: id,
+          owner: req.user._id,
+          sharedWith: sharedWith,
+          permission: permission || 'read',
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          password: hashedPassword
+        });
+      }
+
+      if (sharedWith) {
+        await share.populate('sharedWith', 'name email');
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'File shared successfully',
+        data: { share }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getFileShares(req, res, next) {
+    try {
+      const { id } = req.params;
+      const shares = await SharedFile.find({ fileId: id, owner: req.user._id }).populate('sharedWith', 'name email');
+      
+      res.status(200).json({
+        status: 'success',
+        data: { shares }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async revokeFileShare(req, res, next) {
+    try {
+      const { shareId } = req.params;
+      const share = await SharedFile.findOne({ _id: shareId, owner: req.user._id });
+      if (!share) {
+        return next(new AppError('Share mapping not found or access denied', 404));
+      }
+
+      await SharedFile.deleteOne({ _id: shareId });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Share access revoked successfully'
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicShareInfo(req, res, next) {
+    try {
+      const { shareId } = req.params;
+      const share = await SharedFile.findById(shareId).populate('fileId').populate('owner', 'name');
+      if (!share || share.sharedWith !== null) {
+        return next(new AppError('Shared link not found or invalid', 404));
+      }
+
+      if (share.expiresAt && new Date() > new Date(share.expiresAt)) {
+        return next(new AppError('This shared link has expired', 400));
+      }
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          file: {
+            name: share.fileId.fileName,
+            size: share.fileId.size,
+            mimeType: share.fileId.mimeType,
+            extension: share.fileId.extension
+          },
+          ownerName: share.owner.name,
+          isPasswordProtected: !!share.password
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async verifyPublicSharePassword(req, res, next) {
+    try {
+      const { shareId } = req.params;
+      const { password } = req.body || {};
+
+      const share = await SharedFile.findById(shareId);
+      if (!share || share.sharedWith !== null) {
+        return next(new AppError('Shared link not found or invalid', 404));
+      }
+
+      if (!share.password) {
+        return res.status(200).json({ status: 'success', message: 'No password required' });
+      }
+
+      if (!password) {
+        return next(new AppError('Password is required to access this file', 400));
+      }
+
+      const isMatch = await bcrypt.compare(password, share.password);
+      if (!isMatch) {
+        return next(new AppError('Invalid password. Access denied.', 401));
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Password verified successfully'
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async downloadPublicShare(req, res, next) {
+    try {
+      const { shareId } = req.params;
+      const { password } = req.query || {};
+
+      const share = await SharedFile.findById(shareId).populate('fileId');
+      if (!share || share.sharedWith !== null) {
+        return next(new AppError('Shared link not found or invalid', 404));
+      }
+
+      if (share.expiresAt && new Date() > new Date(share.expiresAt)) {
+        return next(new AppError('This shared link has expired', 400));
+      }
+
+      if (share.password) {
+        if (!password) {
+          return next(new AppError('Password protection is active. Please provide password.', 401));
+        }
+        const isMatch = await bcrypt.compare(password, share.password);
+        if (!isMatch) {
+          return next(new AppError('Invalid password. Access denied.', 401));
+        }
+      }
+
+      const file = share.fileId;
+      const absolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
+      if (!fs.existsSync(absolutePath)) {
+        return next(new AppError('File content not found on server disk', 404));
+      }
+
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
+      res.setHeader('Content-Type', file.mimeType);
+      res.setHeader('Content-Length', file.size);
+
+      const stream = fs.createReadStream(absolutePath);
+      stream.pipe(res);
     } catch (err) {
       next(err);
     }

@@ -6,10 +6,12 @@ import { Skeleton, EmptyState, ErrorState } from '../components/UI';
 import { FileCard } from '../components/FileCard';
 import { ContextMenu } from '../components/ContextMenu';
 import { RenameDialog, DeleteDialog, MoveDialog } from '../components/Dialogs';
+import { ShareModal } from '../components/ShareModal';
 
 export const SharedFiles = () => {
   const { data, isLoading, isError, refetch } = useSharedQuery();
   const [activeTab, setActiveTab] = useState('withMe');
+  const [shareOpen, setShareOpen] = useState(false);
 
   const renameFileMutation = useRenameFileMutation();
   const deleteFileMutation = useDeleteFileMutation();
@@ -166,6 +168,7 @@ export const SharedFiles = () => {
           onTogglePin={() => togglePinMutation.mutate(contextMenu.item.id)}
           onToggleLock={() => toggleLockMutation.mutate(contextMenu.item.id)}
           onToggleArchive={() => toggleArchiveMutation.mutate(contextMenu.item.id)}
+          onShare={() => setShareOpen(true)}
         />
       )}
 
@@ -194,6 +197,12 @@ export const SharedFiles = () => {
             itemType="file"
             itemId={contextMenu.item.id}
             onMove={(targetFolderId) => moveFileMutation.mutate({ id: contextMenu.item.id, targetFolderId })}
+          />
+
+          <ShareModal
+            isOpen={shareOpen}
+            onClose={() => setShareOpen(false)}
+            file={contextMenu.item}
           />
         </>
       )}

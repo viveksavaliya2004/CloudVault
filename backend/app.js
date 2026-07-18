@@ -33,9 +33,15 @@ app.use((req, res, next) => {
 
 // Global Error Handler Middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  
   const statusCode = err.statusCode || 500;
+  
+  if (statusCode >= 500) {
+    console.error(`[Server Error] ${statusCode} - ${err.message}`);
+    console.error(err.stack);
+  } else {
+    console.warn(`[Client Action] ${statusCode} - ${err.message}`);
+  }
+  
   res.status(statusCode).json({
     status: err.status || 'error',
     message: err.message || 'Internal Server Error',

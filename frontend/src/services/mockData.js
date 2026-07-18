@@ -19,7 +19,7 @@ const defaultUser = {
   id: 'user_1',
   name: 'Alex Rivera',
   email: 'alex.rivera@cloudvault.com',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop',
+  avatar: '',
   storageUsed: 68 * 1024 * 1024 * 1024, // 68 GB
   storageLimit: 512 * 1024 * 1024 * 1024, // 512 GB
   role: 'Senior Project Lead'
@@ -105,7 +105,7 @@ const defaultFiles = [
     name: 'Brand Guidelines 2026.pdf',
     size: 24.5 * 1024 * 1024,
     type: 'pdf',
-    owner: { name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&auto=format&fit=crop' },
+    owner: { name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', avatar: '' },
     isFavorite: false,
     isStarred: false,
     isPinned: true,
@@ -135,7 +135,7 @@ const defaultFiles = [
     name: 'Quarterly Finances.xlsx',
     size: 1.2 * 1024 * 1024,
     type: 'document',
-    owner: { name: 'Marcus Aurelius', email: 'marcus@cloudvault.com', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&auto=format&fit=crop' },
+    owner: { name: 'Marcus Aurelius', email: 'marcus@cloudvault.com', avatar: '' },
     isFavorite: false,
     isStarred: false,
     isPinned: false,
@@ -225,7 +225,7 @@ const defaultActivities = [
     targetType: 'file',
     timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     details: 'Renamed from "Financial draft.xlsx"',
-    user: { name: 'Marcus Aurelius', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&auto=format&fit=crop' }
+    user: { name: 'Marcus Aurelius', avatar: '' }
   },
   {
     id: 'act_3',
@@ -234,7 +234,7 @@ const defaultActivities = [
     targetType: 'file',
     timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
     details: 'Shared access set to "viewer" for Alex Rivera',
-    user: { name: 'Sarah Connor', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&auto=format&fit=crop' }
+    user: { name: 'Sarah Connor', avatar: '' }
   },
   {
     id: 'act_4',

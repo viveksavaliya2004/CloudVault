@@ -30,6 +30,7 @@ import { FileTable } from '../components/FileTable';
 import { ContextMenu } from '../components/ContextMenu';
 import { CreateFolderDialog, RenameDialog, DeleteDialog, MoveDialog } from '../components/Dialogs';
 import { UploadModal } from '../components/UploadModal';
+import { ShareModal } from '../components/ShareModal';
 
 export const MyFiles = () => {
   const { folderId = null } = useParams();
@@ -39,6 +40,7 @@ export const MyFiles = () => {
 
   const [viewMode, setViewMode] = useState('grid');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [shareOpen, setShareOpen] = useState(false);
 
   const { data: contents, isLoading, isError, refetch } = useFolderContentsQuery(folderId);
   const { data: allFolders = [] } = useAllFoldersQuery();
@@ -317,6 +319,7 @@ export const MyFiles = () => {
           onTogglePin={contextMenu.type === 'file' ? () => togglePinMutation.mutate(contextMenu.item.id) : undefined}
           onToggleLock={contextMenu.type === 'file' ? () => toggleLockMutation.mutate(contextMenu.item.id) : undefined}
           onToggleArchive={contextMenu.type === 'file' ? () => toggleArchiveMutation.mutate(contextMenu.item.id) : undefined}
+          onShare={contextMenu.type === 'file' ? () => setShareOpen(true) : undefined}
         />
       )}
 
@@ -363,6 +366,12 @@ export const MyFiles = () => {
         isOpen={uploadOpen}
         onClose={() => setUploadOpen(false)}
         currentFolderId={folderId}
+      />
+
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        file={contextMenu?.item}
       />
     </div>
   );

@@ -173,7 +173,11 @@ export const apiService = {
         await delay(500);
         return { data: { success: true, message: 'Password updated successfully' } };
       }
-      return api.patch('/users/profile/password', data);
+      const payload = {
+        currentPassword: data.oldPassword,
+        newPassword: data.newPassword,
+      };
+      return api.patch('/users/profile/password', payload);
     },
     uploadAvatar: async (file) => {
       if (USE_MOCK) {
@@ -316,7 +320,7 @@ export const apiService = {
           await delay(150);
           if (onProgress) onProgress((i / totalSteps) * 100);
         }
-        
+
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
         let fileType = 'other';
         if (['jpg', 'jpeg', 'png', 'svg', 'gif', 'webp'].includes(ext)) fileType = 'image';
@@ -333,7 +337,7 @@ export const apiService = {
       const formData = new FormData();
       formData.append('file', file);
       if (parentFolderId) formData.append('folderId', parentFolderId);
-      
+
       const response = await api.post('/files/upload/single', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
@@ -463,7 +467,7 @@ export const apiService = {
         window.URL.revokeObjectURL(url);
         return { data: { success: true } };
       }
-      
+
       const response = await api.get(`/files/${id}/download`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: response.headers['content-type'] });
       const url = window.URL.createObjectURL(blob);
@@ -489,8 +493,20 @@ export const apiService = {
         const uploadHistory = mockDB.getUploadHistoryData();
         
         const allFiles = mockDB.getMockFiles().filter(f => !f.isDeleted);
-        const pinned = allFiles.filter(f => f.isPinned);
+        const pinned = allFiles.filter(f => f.isPinned || f.isStarred);
         const recent = [...allFiles].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+        const favourites = allFiles.filter(f => f.isFavorite || f.isFavourite);
+        const trashFiles = mockDB.getMockFiles().filter(f => f.isDeleted);
+        const trashFolders = mockDB.getMockFolders().filter(f => f.isDeleted);
+        const recycleBin = {
+          filesCount: trashFiles.length,
+          foldersCount: trashFolders.length,
+          totalSize: trashFiles.reduce((acc, f) => acc + f.size, 0)
+        };
+        const counts = {
+          files: allFiles.length,
+          folders: mockDB.getMockFolders().filter(f => !f.isDeleted).length
+        };
 
         return {
           data: {
@@ -499,7 +515,13 @@ export const apiService = {
             uploadHistory,
             pinnedFiles: pinned,
             recentFiles: recent,
-            activities
+            recentUploads: recent,
+            activities,
+            storageUsed: user.storageUsed,
+            storageRemaining: Math.max(0, user.storageLimit - user.storageUsed),
+            favouriteFiles: favourites,
+            recycleBin,
+            counts
           }
         };
       }
@@ -512,7 +534,13 @@ export const apiService = {
           uploadHistory: response.data.data.uploadHistory,
           pinnedFiles: (response.data.data.pinnedFiles || []).map(mapFile),
           recentFiles: (response.data.data.recentFiles || []).map(mapFile),
-          activities: response.data.data.activities
+          recentUploads: (response.data.data.recentUploads || []).map(mapFile),
+          activities: response.data.data.activities,
+          storageUsed: response.data.data.storageUsed,
+          storageRemaining: response.data.data.storageRemaining,
+          favouriteFiles: (response.data.data.favouriteFiles || []).map(mapFile),
+          recycleBin: response.data.data.recycleBin,
+          counts: response.data.data.counts
         };
       }
       return response;
@@ -566,13 +594,12 @@ export const apiService = {
     }
   },
 
-  // Shared Files list
   shared: {
     getItems: async () => {
       if (USE_MOCK) {
         await delay(350);
         const allFiles = mockDB.getMockFiles().filter(f => !f.isDeleted);
-        
+
         const sharedWithMe = allFiles.filter(f => f.owner.email !== 'alex.rivera@cloudvault.com').map(f => ({
           ...f,
           sharedBy: f.owner,
@@ -583,7 +610,7 @@ export const apiService = {
         const sharedByMe = allFiles.filter(f => f.owner.email === 'alex.rivera@cloudvault.com' && f.isLocked).map(f => ({
           ...f,
           sharedWith: [
-            { name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&auto=format&fit=crop', permission: 'viewer' }
+            { name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', avatar: '', permission: 'viewer' }
           ]
         }));
 
@@ -597,6 +624,86 @@ export const apiService = {
         };
       }
       return response;
+    },
+    share: async (id, data) => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          status: 200,
+          data: {
+            status: 'success',
+            data: {
+              share: {
+                _id: 'mock_share_' + Math.random().toString(36).substring(2, 9),
+                fileId: id,
+                permission: data.permission || 'read',
+                expiresAt: data.expiresAt || null,
+                sharedWith: data.email ? { name: data.email.split('@')[0], email: data.email } : null
+              }
+            }
+          }
+        };
+      }
+      return api.post(`/files/${id}/share`, data);
+    },
+    getShares: async (id) => {
+      if (USE_MOCK) {
+        await delay(200);
+        return {
+          status: 200,
+          data: {
+            shares: [
+              {
+                _id: 'mock_share_1',
+                fileId: id,
+                permission: 'read',
+                expiresAt: null,
+                sharedWith: { name: 'Sarah Connor', email: 'sarah.c@cloudvault.com' }
+              }
+            ]
+          }
+        };
+      }
+      return api.get(`/files/${id}/shares`);
+    },
+    revoke: async (shareId) => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { status: 200, data: { success: true } };
+      }
+      return api.delete(`/files/shares/${shareId}`);
+    },
+    getPublicInfo: async (shareId) => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          status: 200,
+          data: {
+            status: 'success',
+            data: {
+              file: {
+                name: 'Mock Shared File.pdf',
+                size: 14.5 * 1024 * 1024,
+                mimeType: 'application/pdf',
+                extension: '.pdf'
+              },
+              ownerName: 'Alex Rivera',
+              isPasswordProtected: true
+            }
+          }
+        };
+      }
+      return api.get(`/files/shared/public/${shareId}`);
+    },
+    verifyPublicPassword: async (shareId, password) => {
+      if (USE_MOCK) {
+        await delay(300);
+        if (password === 'wrong') {
+          throw { response: { status: 401, data: { message: 'Invalid password' } } };
+        }
+        return { status: 200, data: { status: 'success' } };
+      }
+      return api.post(`/files/shared/public/${shareId}/verify`, { password });
     }
   }
 };

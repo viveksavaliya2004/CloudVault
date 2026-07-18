@@ -2,13 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Edit2, Trash2, FolderSymlink, Copy, Files, Download,
-  Star, Pin, Archive, Lock, Unlock, RotateCcw
+  Star, Pin, Archive, Lock, Unlock, RotateCcw, Share2
 } from 'lucide-react';
 
 export const ContextMenu = ({
   x, y, isOpen, onClose, targetItem, targetType,
   onRename, onDelete, onMove, onCopy, onDuplicate, onDownload,
-  onToggleFavorite, onTogglePin, onToggleLock, onToggleArchive, onRestore
+  onToggleFavorite, onTogglePin, onToggleLock, onToggleArchive, onRestore,
+  onShare
 }) => {
   const menuRef = useRef(null);
 
@@ -97,6 +98,14 @@ export const ContextMenu = ({
 
               {isFile() && (
                 <>
+                  <button
+                    onClick={() => { onShare?.(); onClose(); }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/80 rounded-lg transition-colors text-left"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-slate-450" />
+                    <span>Share Settings</span>
+                  </button>
+
                   <button
                     onClick={() => { onDuplicate?.(); onClose(); }}
                     className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/80 rounded-lg transition-colors text-left"

@@ -1,8 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UploadCloud, File, AlertCircle, RefreshCw, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, UploadCloud, File, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { useUploadFileMutation } from '../hooks/useFiles';
 import { formatBytes } from '../services/mockData';
+
+// SVG Animated Checkmark Component
+const AnimatedCheck = () => {
+  return (
+    <svg
+      className="w-14 h-14 text-emerald-500"
+      viewBox="0 0 52 52"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+    >
+      <motion.circle
+        cx="26"
+        cy="26"
+        r="23"
+        stroke="currentColor"
+        strokeWidth={3.5}
+        strokeLinecap="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      />
+      <motion.path
+        d="M14 27l8 8 16-16"
+        stroke="currentColor"
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
+      />
+    </svg>
+  );
+};
 
 export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -109,7 +144,7 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
     if (allCompleted) {
       const timer = setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 2200); // Expanded slightly so user can enjoy the animated success tick
       return () => clearTimeout(timer);
     }
   }, [allCompleted, onClose]);
@@ -152,40 +187,49 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
             </div>
 
             <div className="p-6 space-y-4">
-              <div
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
-                  dragActive
-                    ? 'border-primary bg-primary/5'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-primary-light/50 bg-slate-50/50 dark:bg-slate-950/20'
-                }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  onClick={(e) => e.stopPropagation()}
-                  className="hidden"
-                />
-                <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-premium rounded-xl text-slate-400 dark:text-slate-500 mb-3 hover-scale">
-                  <UploadCloud className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-sm font-semibold text-slate-850 dark:text-slate-200">
-                  Drag & Drop files here or <span className="text-primary hover:underline">browse</span>
-                </p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
-                  Supports multiple uploads (PDFs, DOCs, Sheets, MP4s, ZIPs up to 1GB)
-                </p>
-              </div>
+              {queue.length === 0 && (
+                <motion.div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  whileHover={{ scale: 1.005 }}
+                  whileTap={{ scale: 0.995 }}
+                  className={`relative flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-9 text-center cursor-pointer transition-all duration-300 ${
+                    dragActive
+                      ? 'border-primary bg-primary/10 shadow-[0_0_20px_rgba(26,115,232,0.2)]'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-primary/50 bg-slate-50/50 dark:bg-slate-950/20'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hidden"
+                  />
+                  
+                  <motion.div
+                    animate={dragActive ? { y: -5, scale: 1.12 } : { y: 0, scale: 1 }}
+                    className="p-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-premium rounded-2xl text-slate-450 dark:text-slate-500 mb-3 transition-shadow group-hover:shadow-md"
+                  >
+                    <UploadCloud className="w-8 h-8 text-primary" />
+                  </motion.div>
+
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-250">
+                    Drag & Drop files here or <span className="text-primary hover:underline">browse</span>
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-semibold">
+                    Supports multiple uploads (PDFs, DOCs, Sheets, MP4s, ZIPs up to 1GB)
+                  </p>
+                </motion.div>
+              )}
 
               {queue.length > 0 && (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Queue</h4>
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Queue</h4>
                   <div className="space-y-2">
                     {queue.map(item => (
                       <div
@@ -198,8 +242,8 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                         
                         <div className="flex-grow min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="text-xs font-medium text-slate-850 dark:text-slate-200 truncate">{item.file.name}</p>
-                            <p className="text-[10px] text-slate-455 flex-shrink-0">{formatBytes(item.file.size)}</p>
+                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{item.file.name}</p>
+                            <p className="text-[10px] text-slate-455 font-semibold flex-shrink-0">{formatBytes(item.file.size)}</p>
                           </div>
                           
                           <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -219,7 +263,17 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          {item.status === 'success' && <CheckCircle2 className="w-4.5 h-4.5 text-success" />}
+                          {item.status === 'success' && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="text-success"
+                            >
+                              <svg className="w-4.5 h-4.5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </motion.div>
+                          )}
                           {item.status === 'error' && (
                             <>
                               <button
@@ -237,7 +291,7 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                           {item.status !== 'uploading' && (
                             <button
                               onClick={() => handleRemove(item.id)}
-                              className="p-1 hover:bg-red-500/10 hover:text-danger rounded-lg text-slate-400 transition-colors"
+                              className="p-1 hover:bg-red-500/10 hover:text-danger rounded-lg text-slate-450 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -251,13 +305,15 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
 
               {allCompleted && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center p-4 bg-success/5 border border-success/10 rounded-xl text-center"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="flex flex-col items-center justify-center p-6 bg-emerald-50/20 dark:bg-emerald-950/10 border border-emerald-500/20 dark:border-emerald-500/10 rounded-2xl text-center"
                 >
-                  <CheckCircle2 className="w-10 h-10 text-success mb-2" />
-                  <p className="text-sm font-semibold text-success-dark dark:text-success-light">All uploads completed successfully!</p>
-                  <p className="text-xs text-slate-500 mt-1">Files have been indexed in your database.</p>
+                  <div className="mb-2.5">
+                    <AnimatedCheck />
+                  </div>
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-450">All uploads completed successfully!</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">Files have been indexed in your database.</p>
                 </motion.div>
               )}
             </div>
@@ -278,4 +334,5 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
     </AnimatePresence>
   );
 };
+
 export default UploadModal;

@@ -5,6 +5,11 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Publicly accessible shared link routes (No JWT required)
+router.get('/shared/public/:shareId', fileController.getPublicShareInfo);
+router.post('/shared/public/:shareId/verify', fileController.verifyPublicSharePassword);
+router.get('/shared/public/:shareId/download', fileController.downloadPublicShare);
+
 // Protect all routes under files
 router.use(protect);
 
@@ -30,5 +35,8 @@ router.patch('/:id/star', fileController.toggleStar);
 router.patch('/:id/archive', fileController.toggleArchive);
 router.patch('/:id/lock', fileController.toggleLock);
 router.post('/:id/duplicate', fileController.duplicateFile);
+router.post('/:id/share', fileController.shareFile);
+router.get('/:id/shares', fileController.getFileShares);
+router.delete('/shares/:shareId', fileController.revokeFileShare);
 
 module.exports = router;

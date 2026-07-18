@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HardDrive, Settings, Trash2, Star, Share2, LayoutDashboard,
@@ -21,17 +21,28 @@ export const MainLayout = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [searchVal, setSearchVal] = useState('');
+  const [searchParams] = useSearchParams();
+  const searchParamVal = searchParams.get('search') || '';
+  const [searchVal, setSearchVal] = useState(searchParamVal);
+
+  useEffect(() => {
+    setSearchVal(searchParamVal);
+  }, [searchParamVal]);
 
   const storagePercentage = user ? (user.storageUsed / user.storageLimit) * 100 : 0;
 
+  const handleSearchChange = (val) => {
+    setSearchVal(val);
+    if (val.trim()) {
+      navigate(`/files?search=${encodeURIComponent(val.trim())}`, { replace: true });
+    } else {
+      navigate('/files', { replace: true });
+    }
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (searchVal.trim()) {
-      navigate(`/files?search=${encodeURIComponent(searchVal.trim())}`);
-    } else {
-      navigate('/files');
-    }
+    handleSearchChange(searchVal);
   };
 
   const navItems = [
@@ -80,7 +91,7 @@ export const MainLayout = () => {
               type="text"
               placeholder="Search files, folders..."
               value={searchVal}
-              onChange={(e) => setSearchVal(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm bg-slate-100/50 dark:bg-slate-900 border-none rounded-xl focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none placeholder:text-slate-400"
             />
           </form>
@@ -288,7 +299,7 @@ export const MainLayout = () => {
                     type="text"
                     placeholder="Search..."
                     value={searchVal}
-                    onChange={(e) => setSearchVal(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs bg-slate-100/50 dark:bg-slate-900 border-none rounded-xl focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all duration-200 outline-none placeholder:text-slate-400"
                   />
                 </form>

@@ -33,6 +33,7 @@ export const useUploadFileMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('File uploaded successfully', 'success');
     },
     onError: () => {
@@ -75,6 +76,7 @@ export const useDeleteFileMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recycleBinItems'] });
       queryClient.invalidateQueries({ queryKey: ['favoriteItems'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast(variables.permanent ? 'File deleted permanently' : 'File moved to Recycle Bin', 'success');
     },
     onError: () => {
@@ -93,6 +95,7 @@ export const useRestoreFileMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recycleBinItems'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('File restored successfully', 'success');
     },
     onError: () => {
@@ -182,6 +185,7 @@ export const useDuplicateFileMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('File duplicated successfully', 'success');
     },
     onError: () => {
@@ -225,6 +229,7 @@ export const useEmptyRecycleBinMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recycleBinItems'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('Recycle bin emptied permanently', 'success');
     },
     onError: () => {
@@ -249,6 +254,55 @@ export const useSharedQuery = () => {
     queryFn: async () => {
       const response = await apiService.shared.getItems();
       return response.data;
+    }
+  });
+};
+
+export const useShareFileMutation = () => {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      return apiService.shared.share(id, data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['fileShares', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['sharedItems'] });
+      addToast('File shared successfully', 'success');
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.message || 'Failed to share file';
+      addToast(msg, 'error');
+    }
+  });
+};
+
+export const useFileSharesQuery = (fileId) => {
+  return useQuery({
+    queryKey: ['fileShares', fileId],
+    queryFn: async () => {
+      if (!fileId) return [];
+      const response = await apiService.shared.getShares(fileId);
+      return response.data.shares || [];
+    },
+    enabled: !!fileId
+  });
+};
+
+export const useRevokeShareMutation = (fileId) => {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: apiService.shared.revoke,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fileShares', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['sharedItems'] });
+      addToast('Share access revoked successfully', 'success');
+    },
+    onError: () => {
+      addToast('Failed to revoke share access', 'error');
     }
   });
 };

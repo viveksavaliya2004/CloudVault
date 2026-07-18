@@ -9,6 +9,7 @@ import { SharedFiles } from '../pages/SharedFiles';
 import { Profile } from '../pages/Profile';
 import { Settings } from '../pages/Settings';
 import { Login } from '../pages/Login';
+import { PublicShare } from '../pages/PublicShare';
 import { useUserQuery } from '../hooks/useAuth';
 import { Loader } from '../components/UI';
 
@@ -54,6 +55,7 @@ export const AppRoutes = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
 
+      <Route path="shared/public/:shareId" element={<PublicShare />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

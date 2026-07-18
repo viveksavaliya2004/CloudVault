@@ -62,6 +62,7 @@ export const useDeleteFolderMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recycleBinItems'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast(variables.permanent ? 'Folder permanently deleted' : 'Folder moved to Recycle Bin', 'success');
     },
     onError: () => {
@@ -80,6 +81,7 @@ export const useRestoreFolderMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
       queryClient.invalidateQueries({ queryKey: ['recycleBinItems'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('Folder and its contents restored successfully', 'success');
     },
     onError: () => {

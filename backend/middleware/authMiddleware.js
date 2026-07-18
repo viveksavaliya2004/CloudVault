@@ -37,6 +37,23 @@ const protect = async (req, res, next) => {
       );
     }
 
+    // Dynamic self-healing: calculate total storage used from files in database
+    try {
+      const File = require('../models/File');
+      const result = await File.aggregate([
+        { $match: { owner: currentUser._id, isDeleted: false } },
+        { $group: { _id: null, totalSize: { $sum: '$size' } } }
+      ]);
+      const actualStorageUsed = result[0]?.totalSize || 0;
+
+      if (currentUser.storageUsed !== actualStorageUsed) {
+        currentUser.storageUsed = actualStorageUsed;
+        await currentUser.save({ validateBeforeSave: false });
+      }
+    } catch (err) {
+      console.error('Error syncing user storageUsed in protect middleware:', err);
+    }
+
     req.user = currentUser;
     next();
   } catch (err) {

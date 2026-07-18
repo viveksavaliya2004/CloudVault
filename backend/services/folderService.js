@@ -115,6 +115,14 @@ class FolderService {
 
     const folderIds = [folder._id, ...descendants.map(d => d._id)];
 
+    // Calculate total size of files inside these folders that are not already deleted
+    const filesToSoftDelete = await File.find({
+      owner: userId,
+      folderId: { $in: folderIds },
+      isDeleted: false,
+    });
+    const totalSizeToDeduct = filesToSoftDelete.reduce((acc, f) => acc + f.size, 0);
+
     // Soft delete all folders
     await Folder.updateMany(
       { _id: { $in: folderIds } },
@@ -126,6 +134,16 @@ class FolderService {
       { owner: userId, folderId: { $in: folderIds } },
       { isDeleted: true }
     );
+
+    // Update User storage
+    if (totalSizeToDeduct > 0) {
+      const User = require('../models/User');
+      const user = await User.findById(userId);
+      if (user) {
+        user.storageUsed = Math.max(0, user.storageUsed - totalSizeToDeduct);
+        await user.save();
+      }
+    }
 
     return { message: 'Folder and all its contents deleted successfully' };
   }
@@ -149,6 +167,25 @@ class FolderService {
 
     const folderIds = [folder._id, ...descendants.map(d => d._id)];
 
+    // Calculate total size of files being restored
+    const filesToRestore = await File.find({
+      owner: userId,
+      folderId: { $in: folderIds },
+      isDeleted: true,
+    });
+    const totalSizeToAdd = filesToRestore.reduce((acc, f) => acc + f.size, 0);
+
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Validate storage limit
+    if (user.storageUsed + totalSizeToAdd > user.storageLimit) {
+      throw new AppError('Storage limit exceeded. Cannot restore folder.', 400);
+    }
+
     // Restore all folders
     await Folder.updateMany(
       { _id: { $in: folderIds } },
@@ -160,6 +197,11 @@ class FolderService {
       { owner: userId, folderId: { $in: folderIds } },
       { isDeleted: false }
     );
+
+    if (totalSizeToAdd > 0) {
+      user.storageUsed += totalSizeToAdd;
+      await user.save();
+    }
 
     return { message: 'Folder and all its contents restored successfully' };
   }
