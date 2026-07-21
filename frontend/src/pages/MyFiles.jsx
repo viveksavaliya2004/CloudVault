@@ -31,8 +31,10 @@ import { ContextMenu } from '../components/ContextMenu';
 import { CreateFolderDialog, RenameDialog, DeleteDialog, MoveDialog } from '../components/Dialogs';
 import { UploadModal } from '../components/UploadModal';
 import { ShareModal } from '../components/ShareModal';
+import { useFileViewer } from '../context/FileViewerContext';
 
 export const MyFiles = () => {
+  const { viewFile } = useFileViewer();
   const { folderId = null } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -285,7 +287,7 @@ export const MyFiles = () => {
                     key={file.id}
                     file={file}
                     onContextMenu={(e) => handleContextMenu(e, file, 'file')}
-                    onDoubleClick={(f) => downloadFileMutation.mutate({ id: f.id, name: f.name })}
+                    onDoubleClick={(f) => viewFile(f)}
                   />
                 ))}
               </div>
@@ -298,6 +300,7 @@ export const MyFiles = () => {
           folders={renderedFolders}
           onNavigateFolder={handleNavigateFolder}
           onContextMenu={handleContextMenu}
+          onDoubleClickFile={(f) => viewFile(f)}
         />
       )}
 
@@ -320,6 +323,7 @@ export const MyFiles = () => {
           onToggleLock={contextMenu.type === 'file' ? () => toggleLockMutation.mutate(contextMenu.item.id) : undefined}
           onToggleArchive={contextMenu.type === 'file' ? () => toggleArchiveMutation.mutate(contextMenu.item.id) : undefined}
           onShare={contextMenu.type === 'file' ? () => setShareOpen(true) : undefined}
+          onView={contextMenu.type === 'file' ? () => viewFile(contextMenu.item) : undefined}
         />
       )}
 

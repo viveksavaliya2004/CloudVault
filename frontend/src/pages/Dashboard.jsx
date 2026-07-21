@@ -9,8 +9,10 @@ import {
 import { useDashboardStatsQuery, useDownloadFileMutation } from '../hooks/useFiles';
 import { formatBytes } from '../services/mockData';
 import { Skeleton, UserAvatar } from '../components/UI';
+import { useFileViewer } from '../context/FileViewerContext';
 
 export const Dashboard = () => {
+  const { viewFile } = useFileViewer();
   const navigate = useNavigate();
   const { data: statsData, isLoading, isError, refetch } = useDashboardStatsQuery();
   const downloadFileMutation = useDownloadFileMutation();
@@ -348,8 +350,8 @@ export const Dashboard = () => {
                     return (
                       <div
                         key={file.id}
-                        onDoubleClick={(e) => handleDownloadFile(e, file)}
-                        className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 px-2 rounded-xl group transition-all duration-150 cursor-pointer"
+                        onDoubleClick={() => viewFile(file)}
+                        className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-805/20 px-2 rounded-xl group transition-all duration-150 cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0 pr-4">
                           <div className={`p-2 rounded-lg ${iconBg} ${iconColor} flex-shrink-0`}>

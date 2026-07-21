@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   Folder, FileText, Image as ImageIcon, Video, FileArchive, File,
-  MoreVertical, Star, ArrowUp, ArrowDown
+  MoreVertical, Star, ArrowUp, ArrowDown, Lock
 } from 'lucide-react';
 import { formatBytes } from '../services/mockData';
 import { UserAvatar } from './UI';
 
 export const FileTable = ({
-  files, folders, onNavigateFolder, onContextMenu
+  files, folders, onNavigateFolder, onContextMenu, onDoubleClickFile
 }) => {
   const [sortField, setSortField] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
@@ -136,7 +136,11 @@ export const FileTable = ({
                   key={item.id}
                   onContextMenu={(e) => onContextMenu(e, item, type)}
                   onDoubleClick={() => {
-                    if (type === 'folder') onNavigateFolder(item.id);
+                    if (type === 'folder') {
+                      onNavigateFolder(item.id);
+                    } else {
+                      onDoubleClickFile?.(item);
+                    }
                   }}
                   className="group hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors text-sm text-slate-700 dark:text-slate-350 cursor-pointer select-none"
                 >

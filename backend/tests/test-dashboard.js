@@ -17,7 +17,13 @@ const testUser = {
 async function runTests() {
   console.log('Connecting to database...');
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    let testMongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cloudvault_test';
+    if (testMongoUri.includes('/CloudVault')) {
+      testMongoUri = testMongoUri.replace(/\/CloudVault(\?|$)/, '/CloudVault_test$1');
+    } else if (!testMongoUri.includes('_test')) {
+      testMongoUri = testMongoUri + '_test';
+    }
+    await mongoose.connect(testMongoUri);
     console.log('Database connected successfully.');
   } catch (err) {
     console.error('Failed to connect to database:', err.message);

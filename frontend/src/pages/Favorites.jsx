@@ -6,8 +6,10 @@ import { FileCard } from '../components/FileCard';
 import { ContextMenu } from '../components/ContextMenu';
 import { RenameDialog, DeleteDialog, MoveDialog } from '../components/Dialogs';
 import { ShareModal } from '../components/ShareModal';
+import { useFileViewer } from '../context/FileViewerContext';
 
 export const Favorites = () => {
+  const { viewFile } = useFileViewer();
   const { data, isLoading, isError, refetch } = useFavoritesQuery();
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -83,7 +85,7 @@ export const Favorites = () => {
               key={file.id}
               file={file}
               onContextMenu={(e) => handleContextMenu(e, file)}
-              onDoubleClick={(f) => downloadFileMutation.mutate({ id: f.id, name: f.name })}
+              onDoubleClick={(f) => viewFile(f)}
             />
           ))}
         </div>
@@ -108,6 +110,7 @@ export const Favorites = () => {
           onToggleLock={() => toggleLockMutation.mutate(contextMenu.item.id)}
           onToggleArchive={() => toggleArchiveMutation.mutate(contextMenu.item.id)}
           onShare={() => setShareOpen(true)}
+          onView={() => viewFile(contextMenu.item)}
         />
       )}
 

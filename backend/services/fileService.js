@@ -248,7 +248,21 @@ class FileService {
   }
 
   async getFileStream(userId, fileId) {
-    const file = await File.findOne({ _id: fileId, owner: userId });
+    // Try to find the file where the user is the owner
+    let file = await File.findOne({ _id: fileId, owner: userId });
+
+    // If not found, check if the file has been shared with this user
+    if (!file) {
+      const SharedFile = require('../models/SharedFile');
+      const share = await SharedFile.findOne({ fileId, sharedWith: userId });
+      if (share) {
+        // Verify expiration if it exists
+        if (!share.expiresAt || new Date() < new Date(share.expiresAt)) {
+          file = await File.findById(fileId);
+        }
+      }
+    }
+
     if (!file) {
       throw new AppError('File not found', 404);
     }
@@ -323,6 +337,27 @@ class FileService {
     await user.save();
 
     return duplicatedFile;
+  }
+
+  async moveFile(userId, fileId, targetFolderId) {
+    const file = await File.findOne({ _id: fileId, owner: userId, isDeleted: false });
+    if (!file) {
+      throw new AppError('File not found', 404);
+    }
+
+    let folderId = null;
+
+    if (targetFolderId && targetFolderId !== 'root') {
+      const targetFolder = await Folder.findOne({ _id: targetFolderId, owner: userId, isDeleted: false });
+      if (!targetFolder) {
+        throw new AppError('Target folder not found', 404);
+      }
+      folderId = targetFolder._id;
+    }
+
+    file.folderId = folderId;
+    await file.save();
+    return file;
   }
 }
 

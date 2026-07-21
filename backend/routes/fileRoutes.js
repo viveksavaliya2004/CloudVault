@@ -30,6 +30,7 @@ router.get('/:id/view', fileController.viewFileInline);
 router.delete('/:id', fileController.deleteFile);
 router.patch('/:id/restore', fileController.restoreFile);
 router.patch('/:id/rename', fileController.renameFile);
+router.patch('/:id/move', fileController.moveFile);
 router.patch('/:id/favourite', fileController.toggleFavourite);
 router.patch('/:id/star', fileController.toggleStar);
 router.patch('/:id/archive', fileController.toggleArchive);

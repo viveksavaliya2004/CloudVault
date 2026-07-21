@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Key, Mail, User, ArrowRight } from 'lucide-react';
-import { useLoginMutation, useRegisterMutation } from '../hooks/useAuth';
+import { useLoginMutation, useRegisterMutation, useLogoutMutation, useUserQuery } from '../hooks/useAuth';
+import { useToast } from '../components/Toast';
 
 export const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -12,9 +13,30 @@ export const Login = () => {
 
   const [activeField, setActiveField] = useState(null);
   
+  const { data: user } = useUserQuery();
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
+  const { addToast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('suspended') === 'true') {
+      addToast('Your account has been suspended. Please contact support.', 'error');
+      navigate('/login', { replace: true });
+    }
+  }, [addToast, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    }
+  }, [user, navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -30,7 +52,16 @@ export const Login = () => {
       });
     } else {
       loginMutation.mutate({ email: email.trim(), password }, {
-        onSuccess: () => navigate('/')
+        onSuccess: (response) => {
+          const loggedUser = response?.data?.user;
+          if (loggedUser && loggedUser.role === 'admin') {
+            addToast('Access Denied: Admin users must log in via the Admin Portal.', 'error');
+            logoutMutation.mutate();
+          } else {
+            addToast('Welcome back to CloudVault!', 'success');
+            navigate('/');
+          }
+        }
       });
     }
   };

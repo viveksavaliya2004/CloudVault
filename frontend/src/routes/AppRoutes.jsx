@@ -10,6 +10,9 @@ import { Profile } from '../pages/Profile';
 import { Settings } from '../pages/Settings';
 import { Login } from '../pages/Login';
 import { PublicShare } from '../pages/PublicShare';
+import { AdminLayout } from '../layouts/AdminLayout';
+import { AdminPanel } from '../pages/AdminPanel';
+import { AdminLogin } from '../pages/AdminLogin';
 import { useUserQuery } from '../hooks/useAuth';
 import { Loader } from '../components/UI';
 
@@ -29,6 +32,10 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (user.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <>{children}</>;
 };
 
@@ -36,6 +43,12 @@ export const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+
+      {/* Admin routes (isolated layout and login) */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminPanel />} />
+      </Route>
 
       <Route
         path="/"

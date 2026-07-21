@@ -37,6 +37,12 @@ const protect = async (req, res, next) => {
       );
     }
 
+    if (currentUser.isBlocked) {
+      return next(
+        new AppError('Your account has been suspended. Please contact support.', 403)
+      );
+    }
+
     // Dynamic self-healing: calculate total storage used from files in database
     try {
       const File = require('../models/File');
@@ -61,6 +67,14 @@ const protect = async (req, res, next) => {
   }
 };
 
+const restrictToAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return next(new AppError('You do not have permission to access this resource.', 403));
+  }
+  next();
+};
+
 module.exports = {
   protect,
+  restrictToAdmin,
 };

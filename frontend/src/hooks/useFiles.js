@@ -284,7 +284,7 @@ export const useFileSharesQuery = (fileId) => {
     queryFn: async () => {
       if (!fileId) return [];
       const response = await apiService.shared.getShares(fileId);
-      return response.data.shares || [];
+      return response.data.data?.shares || response.data.shares || [];
     },
     enabled: !!fileId
   });

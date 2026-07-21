@@ -7,8 +7,10 @@ import { FileCard } from '../components/FileCard';
 import { ContextMenu } from '../components/ContextMenu';
 import { RenameDialog, DeleteDialog, MoveDialog } from '../components/Dialogs';
 import { ShareModal } from '../components/ShareModal';
+import { useFileViewer } from '../context/FileViewerContext';
 
 export const SharedFiles = () => {
+  const { viewFile } = useFileViewer();
   const { data, isLoading, isError, refetch } = useSharedQuery();
   const [activeTab, setActiveTab] = useState('withMe');
   const [shareOpen, setShareOpen] = useState(false);
@@ -115,36 +117,43 @@ export const SharedFiles = () => {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {currentItems.map((file) => (
-                <div key={file.id} className="relative group">
-                  <div className="absolute bottom-[85px] left-3 z-10 flex gap-1 items-center">
-                    {activeTab === 'withMe' ? (
-                      <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-emerald-500 text-white py-0.5 px-2 rounded-full shadow-sm">
-                        <Eye className="w-2.5 h-2.5" />
-                        <span>{file.permission}</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-indigo-500 text-white py-0.5 px-2 rounded-full shadow-sm">
-                        <Edit className="w-2.5 h-2.5" />
-                        <span>Shared</span>
-                      </span>
-                    )}
+              {currentItems.map((file) => {
+                const permissionBadge = activeTab === 'withMe' ? (
+                  <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-emerald-500 text-white py-0.5 px-2 rounded-full shadow-sm">
+                    <Eye className="w-2.5 h-2.5" />
+                    <span>{file.permission}</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-indigo-500 text-white py-0.5 px-2 rounded-full shadow-sm">
+                    <Edit className="w-2.5 h-2.5" />
+                    <span>Shared</span>
+                  </span>
+                );
 
-                    {file.expiration && (
-                      <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-amber-500 text-white py-0.5 px-2 rounded-full shadow-sm">
-                        <Calendar className="w-2.5 h-2.5" />
-                        <span>Expires soon</span>
-                      </span>
-                    )}
-                  </div>
+                const expirationBadge = file.expiration ? (
+                  <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-amber-500 text-white py-0.5 px-2 rounded-full shadow-sm">
+                    <Calendar className="w-2.5 h-2.5" />
+                    <span>Expires soon</span>
+                  </span>
+                ) : null;
 
+                const cardBadge = (
+                  <>
+                    {permissionBadge}
+                    {expirationBadge}
+                  </>
+                );
+
+                return (
                   <FileCard
+                    key={file.id}
                     file={file}
                     onContextMenu={(e) => handleContextMenu(e, file)}
-                    onDoubleClick={(f) => downloadFileMutation.mutate({ id: f.id, name: f.name })}
+                    onDoubleClick={(f) => viewFile(f)}
+                    badge={cardBadge}
                   />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </motion.div>
@@ -169,6 +178,7 @@ export const SharedFiles = () => {
           onToggleLock={() => toggleLockMutation.mutate(contextMenu.item.id)}
           onToggleArchive={() => toggleArchiveMutation.mutate(contextMenu.item.id)}
           onShare={() => setShareOpen(true)}
+          onView={() => viewFile(contextMenu.item)}
         />
       )}
 

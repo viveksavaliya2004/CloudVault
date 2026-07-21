@@ -48,6 +48,10 @@ class AuthService {
       throw new AppError('Invalid email or password', 401);
     }
 
+    if (user.isBlocked) {
+      throw new AppError('Your account has been suspended. Please contact support.', 403);
+    }
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
@@ -84,6 +88,10 @@ class AuthService {
     const user = await User.findById(decoded.id);
     if (!user || user.refreshToken !== token) {
       throw new AppError('Invalid refresh token session', 401);
+    }
+
+    if (user.isBlocked) {
+      throw new AppError('Your account has been suspended. Please contact support.', 403);
     }
 
     const accessToken = generateAccessToken(user);

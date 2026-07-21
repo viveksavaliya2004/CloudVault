@@ -1,12 +1,29 @@
 const userService = require('../services/userService');
+const cacheService = require('../services/cacheService');
 const AppError = require('../utils/AppError');
 
 class UserController {
   async getProfile(req, res, next) {
     try {
+      const userId = req.user._id;
+      const cachedProfile = await cacheService.getProfile(userId);
+
+      if (cachedProfile) {
+        console.log(`⚡ [CACHE HIT] Serving Profile for user ${userId} from Cache (MongoDB Query Skipped)`);
+        return res.status(200).json({
+          status: 'success',
+          data: {
+            user: cachedProfile,
+          },
+        });
+      }
+
+      console.log(`📦 [CACHE MISS] Fetching Profile for user ${userId} from MongoDB & Caching`);
       const userJson = req.user.toObject();
       delete userJson.password;
       delete userJson.refreshToken;
+
+      await cacheService.setProfile(userId, userJson);
 
       res.status(200).json({
         status: 'success',
@@ -29,6 +46,7 @@ class UserController {
       }
 
       const updatedUser = await userService.updateProfile(req.user._id, name);
+      await cacheService.invalidateProfile(req.user._id);
 
       res.status(200).json({
         status: 'success',
@@ -49,6 +67,7 @@ class UserController {
       }
 
       const updatedUser = await userService.uploadAvatar(req.user._id, req.file.filename);
+      await cacheService.invalidateProfile(req.user._id);
 
       res.status(200).json({
         status: 'success',
@@ -76,6 +95,7 @@ class UserController {
       }
 
       await userService.changePassword(req.user._id, currentPassword, newPassword);
+      await cacheService.invalidateProfile(req.user._id);
 
       res.status(200).json({
         status: 'success',

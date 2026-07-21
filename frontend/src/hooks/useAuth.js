@@ -35,7 +35,6 @@ export const useLoginMutation = () => {
     mutationFn: apiService.auth.login,
     onSuccess: (response) => {
       queryClient.setQueryData(['currentUser'], response.data.user);
-      addToast('Welcome back to CloudVault!', 'success');
     },
     onError: (error) => {
       addToast(error?.response?.data?.message || 'Login failed. Please try again.', 'error');

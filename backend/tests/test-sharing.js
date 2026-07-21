@@ -20,8 +20,13 @@ let fileId;
 let shareId;
 
 async function setup() {
-  console.log('Connecting to database...');
-  await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cloudvault_test');
+  let testMongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/cloudvault_test';
+  if (testMongoUri.includes('/CloudVault')) {
+    testMongoUri = testMongoUri.replace(/\/CloudVault(\?|$)/, '/CloudVault_test$1');
+  } else if (!testMongoUri.includes('_test')) {
+    testMongoUri = testMongoUri + '_test';
+  }
+  await mongoose.connect(testMongoUri);
   console.log('Database connected successfully.');
 
   // Clear test DB

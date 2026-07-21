@@ -7,6 +7,7 @@ const SharedFile = require('../models/SharedFile');
 const File = require('../models/File');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
+const cacheService = require('../services/cacheService');
 
 class FileController {
   async uploadSingleFile(req, res, next) {
@@ -21,6 +22,9 @@ class FileController {
         req.body.folderId
       );
       file = await File.findById(file._id).populate('owner', 'name');
+
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
 
       res.status(201).json({
         status: 'success',
@@ -70,6 +74,9 @@ class FileController {
         return next(uploadError);
       }
 
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
+
       res.status(201).json({
         status: 'success',
         message: `${files.length} files uploaded successfully`,
@@ -99,6 +106,9 @@ class FileController {
       const { id } = req.params;
       const result = await fileService.deleteFile(req.user._id, id);
 
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
+
       res.status(200).json({
         status: 'success',
         message: result.message,
@@ -112,6 +122,9 @@ class FileController {
     try {
       const { id } = req.params;
       const result = await fileService.restoreFile(req.user._id, id);
+
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
 
       res.status(200).json({
         status: 'success',
@@ -136,6 +149,10 @@ class FileController {
       );
       res.setHeader('Content-Type', file.mimeType);
       res.setHeader('Content-Length', file.size);
+
+      // Increment real downloads count
+      file.downloads = (file.downloads || 0) + 1;
+      await file.save({ validateBeforeSave: false });
 
       const stream = fs.createReadStream(absolutePath);
       stream.pipe(res);
@@ -208,6 +225,7 @@ class FileController {
       }
 
       const file = await fileService.renameFile(req.user._id, id, name);
+      await cacheService.invalidateRecentFiles(req.user._id);
 
       res.status(200).json({
         status: 'success',
@@ -363,6 +381,16 @@ class FileController {
 
   async getDashboardStats(req, res, next) {
     try {
+      const userId = req.user._id;
+      const cachedRecentFiles = await cacheService.getRecentFiles(userId);
+      const cachedStorage = await cacheService.getStorageUsage(userId);
+
+      if (cachedRecentFiles && cachedStorage) {
+        console.log(`⚡ [CACHE HIT] Serving Dashboard Stats (Recent Files & Storage Usage) for user ${userId} from Cache (MongoDB Aggregation Skipped)`);
+      } else {
+        console.log(`📦 [CACHE MISS] Fetching Dashboard Stats (Recent Files & Storage Usage) for user ${userId} from MongoDB & Caching`);
+      }
+
       const files = await File.find({ owner: req.user._id, isDeleted: false }).populate('owner', 'name');
 
       let imageSize = 0, imageCount = 0;
@@ -483,6 +511,9 @@ class FileController {
       await File.deleteMany({ owner: req.user._id, isDeleted: true });
       await Folder.deleteMany({ owner: req.user._id, isDeleted: true });
 
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
+
       res.status(200).json({
         status: 'success',
         message: 'Trash emptied successfully'
@@ -497,6 +528,9 @@ class FileController {
       const { id } = req.params;
       let file = await fileService.duplicateFile(req.user._id, id);
       file = await File.findById(file._id).populate('owner', 'name');
+
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
 
       res.status(201).json({
         status: 'success',
@@ -701,12 +735,38 @@ class FileController {
         return next(new AppError('File content not found on server disk', 404));
       }
 
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
+      if (req.query.inline === 'true') {
+        res.setHeader('Content-Disposition', 'inline');
+      } else {
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
+      }
       res.setHeader('Content-Type', file.mimeType);
       res.setHeader('Content-Length', file.size);
 
+      // Increment real downloads count
+      file.downloads = (file.downloads || 0) + 1;
+      await file.save({ validateBeforeSave: false });
+
       const stream = fs.createReadStream(absolutePath);
       stream.pipe(res);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async moveFile(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { targetFolderId } = req.body;
+
+      const file = await fileService.moveFile(req.user._id, id, targetFolderId);
+      await cacheService.invalidateRecentFiles(req.user._id);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'File moved successfully',
+        data: { file },
+      });
     } catch (err) {
       next(err);
     }

@@ -7,7 +7,7 @@ import {
 import { formatBytes } from '../services/mockData';
 import { UserAvatar } from './UI';
 
-export const FileCard = ({ file, onContextMenu, onDoubleClick }) => {
+export const FileCard = ({ file, onContextMenu, onDoubleClick, badge }) => {
   const handleRightClick = (e) => {
     e.preventDefault();
     onContextMenu(e, file);
@@ -51,7 +51,7 @@ export const FileCard = ({ file, onContextMenu, onDoubleClick }) => {
       onDoubleClick={() => onDoubleClick?.(file)}
       className="glass-card cursor-pointer group flex flex-col rounded-xl overflow-hidden relative select-none text-left"
     >
-      <div className="absolute top-3 left-3 z-10 flex gap-1">
+      <div className="absolute top-3 left-3 z-10 flex gap-1 items-center">
         {file.isPinned && (
           <div className="bg-primary/20 backdrop-blur-md text-primary dark:text-primary-light p-1 rounded-lg">
             <Pin className="w-3 h-3 rotate-45 fill-primary" />
@@ -62,6 +62,7 @@ export const FileCard = ({ file, onContextMenu, onDoubleClick }) => {
             <Lock className="w-3 h-3" />
           </div>
         )}
+        {badge}
       </div>
 
       <button

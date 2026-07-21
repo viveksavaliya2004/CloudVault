@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UserPlus, Link2, Calendar, Lock, ShieldAlert, Trash2, Check, Copy } from 'lucide-react';
+import { X, UserPlus, Link2, Calendar, Lock, ShieldAlert, Trash2, Check, Copy, ChevronDown } from 'lucide-react';
 import { useShareFileMutation, useFileSharesQuery, useRevokeShareMutation } from '../hooks/useFiles';
 import { formatBytes } from '../services/mockData';
 
@@ -12,6 +12,7 @@ export const ShareModal = ({ isOpen, onClose, file }) => {
   const [password, setPassword] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const { data: shares = [], refetch } = useFileSharesQuery(file?.id);
   const shareMutation = useShareFileMutation();
@@ -111,6 +112,36 @@ export const ShareModal = ({ isOpen, onClose, file }) => {
     });
   };
 
+  const permissions = [
+    { value: 'read', label: 'Viewer' },
+    { value: 'write', label: 'Editor' },
+    { value: 'edit', label: 'Co-owner' }
+  ];
+
+  const getPermissionBadge = (perm) => {
+    switch (perm) {
+      case 'read':
+        return (
+          <span className="text-[9px] font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 px-2.5 py-0.5 rounded-full select-none">
+            Viewer
+          </span>
+        );
+      case 'write':
+        return (
+          <span className="text-[9px] font-bold tracking-wider uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/10 px-2.5 py-0.5 rounded-full select-none">
+            Editor
+          </span>
+        );
+      case 'edit':
+      default:
+        return (
+          <span className="text-[9px] font-bold tracking-wider uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10 px-2.5 py-0.5 rounded-full select-none">
+            Co-owner
+          </span>
+        );
+    }
+  };
+
   if (!file) return null;
 
   return (
@@ -182,79 +213,113 @@ export const ShareModal = ({ isOpen, onClose, file }) => {
               {activeTab === 'people' ? (
                 <div className="space-y-4">
                   {/* Enter Email Form */}
-                  <form onSubmit={handleShareWithPerson} className="flex gap-2">
-                    <div className="relative flex-grow">
+                  <form onSubmit={handleShareWithPerson} className="space-y-3 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/60 dark:border-slate-800/60 p-4 rounded-2xl">
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider">Email Address</label>
                       <input
                         type="email"
                         placeholder="Add friend's email..."
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-3 pr-20 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs bg-transparent focus:outline-none focus:border-primary text-slate-800 dark:text-slate-100 font-semibold"
+                        className="w-full px-3 py-2 border border-slate-205 dark:border-slate-800 rounded-xl text-xs bg-transparent focus:outline-none focus:border-primary text-slate-850 dark:text-slate-100 font-semibold"
                         required
                       />
-                      <div className="absolute right-1.5 top-1.5">
-                        <select
-                          value={permission}
-                          onChange={(e) => setPermission(e.target.value)}
-                          className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg focus:outline-none cursor-pointer"
-                        >
-                          <option value="read">Viewer</option>
-                          <option value="write">Editor</option>
-                          <option value="edit">Owner</option>
-                        </select>
-                      </div>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={shareMutation.isPending}
-                      className="premium-button-primary px-3 text-xs flex-shrink-0"
-                    >
-                      Share
-                    </button>
+                    
+                    <div className="flex gap-3 items-center justify-between pt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-450 dark:text-slate-505 uppercase tracking-wider">Role</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl transition-all border border-slate-200/20 shadow-xs cursor-pointer"
+                          >
+                            <span>{permissions.find(p => p.value === permission)?.label}</span>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          {isDropdownOpen && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                              <div className="absolute left-0 mt-1.5 w-32 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 z-50 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                                {permissions.map((p) => (
+                                  <button
+                                    key={p.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setPermission(p.value);
+                                      setIsDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors font-semibold cursor-pointer ${
+                                      permission === p.value
+                                        ? 'bg-primary/10 text-primary font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800'
+                                    }`}
+                                  >
+                                    {p.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={shareMutation.isPending}
+                        className="premium-button-primary px-5 py-2 text-xs font-bold shadow-sm flex items-center gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Share</span>
+                      </button>
+                    </div>
                   </form>
 
                   {/* List of active shares */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">People with access</h4>
                     
-                    <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                    <div className="border border-slate-100 dark:border-slate-800 bg-slate-50/25 dark:bg-slate-950/10 p-3.5 rounded-2xl space-y-3 max-h-48 overflow-y-auto pr-1">
                       {/* Owner list */}
-                      <div className="flex items-center justify-between py-1">
-                        <div className="flex items-center gap-2">
-                          <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                      <div className="flex items-center justify-between py-0.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shadow-sm">
                             {file.owner?.name?.charAt(0).toUpperCase() || 'U'}
                           </span>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                              {file.owner?.name || 'You'} (Owner)
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                              {file.owner?.name || 'You'}
                             </p>
                             <p className="text-[9px] text-slate-400 font-medium">Owner of the file</p>
                           </div>
                         </div>
+                        <span className="text-[9px] font-bold tracking-wider uppercase bg-primary/15 text-primary dark:text-primary-light border border-primary/20 px-2.5 py-0.5 rounded-full select-none">
+                          Owner
+                        </span>
                       </div>
 
                       {/* Shares list */}
                       {shares.filter(s => s.sharedWith !== null).map(share => (
-                        <div key={share._id} className="flex items-center justify-between py-1 group">
-                          <div className="flex items-center gap-2">
-                            <span className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-xs uppercase">
+                        <div key={share._id} className="flex items-center justify-between py-0.5 group">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-8 w-8 rounded-full bg-slate-105 dark:bg-slate-800 text-slate-600 dark:text-slate-350 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
                               {share.sharedWith?.name?.charAt(0) || 'U'}
                             </span>
-                            <div className="min-w-0 max-w-[200px]">
-                              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            <div className="min-w-0 max-w-[180px] text-left">
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-205 truncate">
                                 {share.sharedWith?.name || 'User'}
                               </p>
                               <p className="text-[9px] text-slate-400 truncate">{share.sharedWith?.email}</p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg text-slate-505 font-bold capitalize">
-                              {share.permission === 'read' ? 'Viewer' : share.permission === 'write' ? 'Editor' : 'Co-owner'}
-                            </span>
+                          <div className="flex items-center gap-2.5">
+                            {getPermissionBadge(share.permission)}
                             <button
                               onClick={() => handleRevoke(share._id)}
-                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
                               title="Revoke access"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -264,7 +329,7 @@ export const ShareModal = ({ isOpen, onClose, file }) => {
                       ))}
 
                       {shares.filter(s => s.sharedWith !== null).length === 0 && (
-                        <p className="text-[10px] text-slate-400 italic py-2">No users have private access to this file yet.</p>
+                        <p className="text-[10px] text-slate-400 italic text-center py-2">No users have private access to this file yet.</p>
                       )}
                     </div>
                   </div>

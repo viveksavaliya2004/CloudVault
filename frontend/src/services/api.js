@@ -74,7 +74,21 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    
+    // Check if the request URL is one of the authentication endpoints
+    const isAuthRequest = originalRequest.url && (
+      originalRequest.url.includes('/auth/login') ||
+      originalRequest.url.includes('/auth/register') ||
+      originalRequest.url.includes('/auth/refresh') ||
+      originalRequest.url.includes('/auth/logout')
+    );
+
+    const isPublicShareRequest = originalRequest.url && originalRequest.url.includes('/files/shared/public/');
+
+    const hasToken = !!localStorage.getItem('accessToken');
+    const isOnLoginPage = window.location.pathname.includes('/login');
+
+    if (error.response && error.response.status === 401 && hasToken && !isOnLoginPage && !originalRequest._retry && !isAuthRequest && !isPublicShareRequest) {
       originalRequest._retry = true;
       try {
         const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
@@ -84,12 +98,27 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('accessToken');
+        const isSuspended = refreshError.response && refreshError.response.status === 403 &&
+          (refreshError.response.data?.message || '').includes('suspended');
+        
         if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+          window.location.href = isSuspended ? '/login?suspended=true' : '/login';
         }
         return Promise.reject(refreshError);
       }
     }
+
+    // If account has been suspended/blocked (403), immediately clear token and log out the user
+    if (error.response && error.response.status === 403) {
+      const msg = error.response.data?.message || '';
+      if (msg.includes('suspended') || msg.includes('suspended.')) {
+        localStorage.removeItem('accessToken');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login?suspended=true';
+        }
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -704,6 +733,82 @@ export const apiService = {
         return { status: 200, data: { status: 'success' } };
       }
       return api.post(`/files/shared/public/${shareId}/verify`, { password });
+    }
+  },
+
+  admin: {
+    getStats: async () => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          data: {
+            stats: {
+              usersCount: 8,
+              filesCount: 142,
+              blockedUsersCount: 1,
+              totalStorageUsed: 42.5 * 1024 * 1024 * 1024,
+              totalStorageLimit: 80 * 1024 * 1024 * 1024,
+              uploadsCount: 142,
+              downloadsCount: 589
+            },
+            topUsers: [
+              { id: '1', name: 'Alex Rivera', email: 'alex.rivera@cloudvault.com', storageUsed: 15.4 * 1024 * 1024 * 1024, role: 'admin', isBlocked: false },
+              { id: '2', name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', storageUsed: 12.1 * 1024 * 1024 * 1024, role: 'user', isBlocked: false },
+              { id: '3', name: 'John Doe', email: 'john.doe@cloudvault.com', storageUsed: 8.5 * 1024 * 1024 * 1024, role: 'user', isBlocked: false }
+            ],
+            blockedUsers: [
+              { id: '4', name: 'Malicious Actor', email: 'mal@actor.com', storageUsed: 0, role: 'user', isBlocked: true }
+            ],
+            logs: [
+              { id: 'log-1', action: 'file_upload', message: 'Alex Rivera uploaded "Quarterly_Report.pdf"', timestamp: new Date().toISOString() },
+              { id: 'log-2', action: 'user_register', message: 'New user registration: John Doe (john.doe@cloudvault.com)', timestamp: new Date(Date.now() - 3600000).toISOString() },
+              { id: 'log-3', action: 'user_block', message: 'Administrator blocked user "Malicious Actor"', timestamp: new Date(Date.now() - 7200000).toISOString() }
+            ]
+          }
+        };
+      }
+      const response = await api.get('/admin/stats');
+      // Normalize: backend returns { status, data: { stats, topUsers, ... } }
+      // Axios wraps it in response.data, so actual data is at response.data.data
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
+    },
+    getUsers: async () => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          data: {
+            users: [
+              { _id: '1', name: 'Alex Rivera', email: 'alex.rivera@cloudvault.com', storageUsed: 15.4 * 1024 * 1024 * 1024, role: 'admin', isBlocked: false, createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
+              { _id: '2', name: 'Sarah Connor', email: 'sarah.c@cloudvault.com', storageUsed: 12.1 * 1024 * 1024 * 1024, role: 'user', isBlocked: false, createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() },
+              { _id: '3', name: 'John Doe', email: 'john.doe@cloudvault.com', storageUsed: 8.5 * 1024 * 1024 * 1024, role: 'user', isBlocked: false, createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
+              { _id: '4', name: 'Malicious Actor', email: 'mal@actor.com', storageUsed: 0, role: 'user', isBlocked: true, createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() }
+            ]
+          }
+        };
+      }
+      const response = await api.get('/admin/users');
+      // Normalize: unwrap nested data envelope
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
+    },
+    toggleBlockUser: async (id) => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { data: { success: true } };
+      }
+      return api.patch(`/admin/users/${id}/toggle-block`);
+    },
+    deleteFile: async (id) => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { data: { success: true } };
+      }
+      return api.delete(`/admin/files/${id}`);
     }
   }
 };
