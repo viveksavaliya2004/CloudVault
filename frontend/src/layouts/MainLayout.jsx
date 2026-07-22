@@ -184,7 +184,7 @@ export const MainLayout = () => {
                           <p className="text-[10px] text-slate-400 truncate mt-0.5">{user.email}</p>
                         </div>
                         <div className="p-1 space-y-0.5">
-                           <Link
+                          <Link
                             to="/profile"
                             onClick={() => setProfileDropdownOpen(false)}
                             className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/80 rounded-xl transition-colors"
@@ -229,7 +229,7 @@ export const MainLayout = () => {
       </header>
 
       <div className="flex-grow flex relative">
-        <aside className="hidden md:flex w-64 flex-col p-5 gap-6 select-none flex-shrink-0 bg-transparent">
+        <aside className="hidden md:flex w-64 flex-col p-5 gap-6 select-none flex-shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto self-start bg-transparent [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
           <nav className="flex flex-col gap-1.5">
             {navItems.map(item => (
               <NavLink

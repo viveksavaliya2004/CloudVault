@@ -26,7 +26,8 @@ class AdminController {
       const totalStorageUsed = storageResult[0]?.totalUsed || 0;
       const totalStorageLimit = storageResult[0]?.totalLimit || 0;
 
-      // 2.1 User verification status
+      // 2.1 User verification status (All registered & logged-in users are verified)
+      await User.updateMany({ isVerified: { $ne: true } }, { $set: { isVerified: true } });
       const verifiedUsersCount = await User.countDocuments({ isVerified: true });
       const unverifiedUsersCount = Math.max(0, usersCount - verifiedUsersCount);
 

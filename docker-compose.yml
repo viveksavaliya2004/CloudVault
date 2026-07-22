@@ -1,0 +1,66 @@
+services:
+  # 1. MongoDB Database Container
+  mongo:
+    image: mongo:latest
+    container_name: cloudvault_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: cloudvault
+    volumes:
+      - mongo_data:/data/db
+
+  # 2. Redis In-Memory Cache & BullMQ Queue Store
+  redis:
+    image: redis:alpine
+    container_name: cloudvault_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. Express Backend Node.js API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudvault_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/cloudvault
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=cloudvault_access_secret_key_2026_enterprise
+      - JWT_REFRESH_SECRET=cloudvault_refresh_secret_key_2026_enterprise
+      - JWT_ACCESS_EXPIRE=15m
+      - JWT_REFRESH_EXPIRE=7d
+      - CLIENT_URL=http://localhost
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    depends_on:
+      - mongo
+      - redis
+
+  # 4. Nginx Reverse Proxy & Frontend Static Host
+  nginx:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    container_name: cloudvault_nginx
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  redis_data:
+  backend_uploads:
+  backend_logs:

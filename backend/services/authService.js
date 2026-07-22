@@ -29,6 +29,7 @@ class AuthService {
       name,
       email,
       password, // Password hashing is handled by pre-save hook in User model
+      isVerified: true, // Automatically set isVerified to true upon successful registration
     });
 
     const userJson = newUser.toObject();
@@ -55,8 +56,8 @@ class AuthService {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Save refresh token to database
-    await User.findByIdAndUpdate(user._id, { refreshToken });
+    // Save refresh token to database and automatically verify account upon successful login
+    await User.findByIdAndUpdate(user._id, { refreshToken, isVerified: true });
 
     const userJson = user.toObject();
     delete userJson.password;

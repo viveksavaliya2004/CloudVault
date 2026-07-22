@@ -4,8 +4,10 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
+const { validateRegister, validateLogin } = require('../middleware/validationMiddleware');
+
+router.post('/register', validateRegister, authController.register);
+router.post('/login', validateLogin, authController.login);
 router.post('/logout', authController.logout);
 router.post('/refresh', authController.refresh);
 

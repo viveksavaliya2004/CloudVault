@@ -67,14 +67,36 @@ const protect = async (req, res, next) => {
   }
 };
 
+// RBAC Role Restrictions (Admin vs User)
+const restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(
+        new AppError('You do not have permission to perform this action', 403)
+      );
+    }
+    next();
+  };
+};
+
 const restrictToAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'Admin')) {
     return next(new AppError('You do not have permission to access this resource.', 403));
   }
   next();
 };
 
+// File Management RBAC Check: Admin manages all files; User manages only their own
+const canUserManageFile = (user, file) => {
+  if (!user || !file) return false;
+  if (user.role === 'admin' || user.role === 'Admin') return true;
+  const ownerId = file.owner?._id ? file.owner._id.toString() : file.owner?.toString();
+  return ownerId === user._id.toString();
+};
+
 module.exports = {
   protect,
+  restrictTo,
   restrictToAdmin,
+  canUserManageFile,
 };

@@ -24,12 +24,14 @@ router.get('/list/shared', fileController.getSharedList);
 router.get('/list/dashboard-stats', fileController.getDashboardStats);
 router.delete('/trash/empty', fileController.emptyTrash);
 
+const { validateFileRename } = require('../middleware/validationMiddleware');
+
 router.get('/:id', fileController.getFileMetadata);
 router.get('/:id/download', fileController.downloadFile);
 router.get('/:id/view', fileController.viewFileInline);
 router.delete('/:id', fileController.deleteFile);
 router.patch('/:id/restore', fileController.restoreFile);
-router.patch('/:id/rename', fileController.renameFile);
+router.patch('/:id/rename', validateFileRename, fileController.renameFile);
 router.patch('/:id/move', fileController.moveFile);
 router.patch('/:id/favourite', fileController.toggleFavourite);
 router.patch('/:id/star', fileController.toggleStar);

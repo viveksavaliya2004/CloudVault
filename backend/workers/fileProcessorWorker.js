@@ -33,8 +33,8 @@ const processFileJob = async (job) => {
   // STEP 2: Thumbnail Generation
   console.log(`📷 [Pipeline Step 2/5] Generating Thumbnail for "${file.fileName}"...`);
   const isPdf = (file.mimeType && file.mimeType.includes('pdf')) ||
-                (file.fileName && file.fileName.toLowerCase().endsWith('.pdf')) ||
-                (file.originalName && file.originalName.toLowerCase().endsWith('.pdf'));
+    (file.fileName && file.fileName.toLowerCase().endsWith('.pdf')) ||
+    (file.originalName && file.originalName.toLowerCase().endsWith('.pdf'));
 
   if (file.mimeType && file.mimeType.startsWith('image/')) {
     file.thumbnailPath = file.storagePath;

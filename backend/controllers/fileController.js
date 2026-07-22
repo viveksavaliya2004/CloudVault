@@ -627,7 +627,7 @@ class FileController {
     try {
       const { id } = req.params;
       const shares = await SharedFile.find({ fileId: id, owner: req.user._id }).populate('sharedWith', 'name email');
-      
+
       res.status(200).json({
         status: 'success',
         data: { shares }
