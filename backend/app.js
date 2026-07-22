@@ -6,6 +6,8 @@ const userRoutes = require('./routes/userRoutes');
 const folderRoutes = require('./routes/folderRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+require('./workers/fileProcessorWorker');
 
 // Initialize express app
 const app = express();
@@ -21,6 +23,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Serve uploads static folder
 app.use('/uploads', express.static(path.join(__dirname, './uploads')));

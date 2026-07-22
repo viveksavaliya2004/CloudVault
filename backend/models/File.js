@@ -73,6 +73,24 @@ const fileSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    processingStatus: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed'],
+      default: 'pending',
+    },
+    thumbnailPath: {
+      type: String,
+      default: '',
+    },
+    isCompressed: {
+      type: Boolean,
+      default: false,
+    },
+    virusScanStatus: {
+      type: String,
+      enum: ['unscanned', 'clean', 'infected'],
+      default: 'unscanned',
+    },
   },
   {
     timestamps: true,

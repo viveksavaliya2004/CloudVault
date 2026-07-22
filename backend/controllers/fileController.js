@@ -8,6 +8,7 @@ const File = require('../models/File');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const cacheService = require('../services/cacheService');
+const { addFileProcessingJob } = require('../config/queue');
 
 class FileController {
   async uploadSingleFile(req, res, next) {
@@ -25,6 +26,12 @@ class FileController {
 
       await cacheService.invalidateRecentFiles(req.user._id);
       await cacheService.invalidateStorageUsage(req.user._id);
+
+      // Dispatch 5-step background processing job
+      await addFileProcessingJob('process-file', {
+        fileId: file._id,
+        userId: req.user._id,
+      });
 
       res.status(201).json({
         status: 'success',
@@ -52,6 +59,12 @@ class FileController {
           );
           fileDoc = await File.findById(fileDoc._id).populate('owner', 'name');
           files.push(fileDoc);
+
+          // Dispatch 5-step background processing job for each file
+          await addFileProcessingJob('process-file', {
+            fileId: fileDoc._id,
+            userId: req.user._id,
+          });
         }
       } catch (uploadError) {
         // Atomic cleanup: remove any successfully created files in this batch
