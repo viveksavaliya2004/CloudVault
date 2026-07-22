@@ -120,6 +120,7 @@ const defaultFiles = [
     name: 'Dashboard UI mockup.png',
     size: 3.2 * 1024 * 1024,
     type: 'image',
+    url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop',
     owner: { name: 'Alex Rivera', email: 'alex.rivera@cloudvault.com', avatar: defaultUser.avatar },
     isFavorite: true,
     isStarred: true,

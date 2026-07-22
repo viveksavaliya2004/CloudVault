@@ -41,17 +41,29 @@ const getFileType = (ext, mime) => {
   return 'other';
 };
 
+const cleanUrl = (url) => {
+  if (!url) return '';
+  return String(url).replace(/\\/g, '/');
+};
+
 const mapFile = (f) => {
   if (!f) return f;
+  const storageUrl = cleanUrl(f.storagePath || f.url || '');
+  const thumbUrl = cleanUrl(f.thumbnailUrl || f.thumbnailPath || f.thumbnail || storageUrl);
   return {
     ...f,
-    id: f._id,
+    id: f._id || f.id,
     name: f.fileName || f.name || f.originalName || 'Untitled File',
     type: f.type || getFileType(f.extension, f.mimeType),
-    parentFolderId: f.folderId,
+    parentFolderId: f.folderId || f.parentFolderId,
     isFavorite: f.isFavourite || f.isFavorite || false,
     isPinned: f.isStarred || f.isPinned || false,
     owner: f.owner && typeof f.owner === 'object' ? f.owner : { name: 'Owner', email: 'owner@cloudvault.com' },
+    url: cleanUrl(f.url || storageUrl),
+    thumbnail: thumbUrl,
+    thumbnailUrl: thumbUrl,
+    thumbnailPath: cleanUrl(f.thumbnailPath),
+    storagePath: cleanUrl(f.storagePath),
   };
 };
 
@@ -74,7 +86,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
+
     // Check if the request URL is one of the authentication endpoints
     const isAuthRequest = originalRequest.url && (
       originalRequest.url.includes('/auth/login') ||
@@ -100,7 +112,7 @@ api.interceptors.response.use(
         localStorage.removeItem('accessToken');
         const isSuspended = refreshError.response && refreshError.response.status === 403 &&
           (refreshError.response.data?.message || '').includes('suspended');
-        
+
         if (!window.location.pathname.includes('/login')) {
           window.location.href = isSuspended ? '/login?suspended=true' : '/login';
         }
@@ -520,7 +532,7 @@ export const apiService = {
         const activities = mockDB.getMockActivities();
         const stats = mockDB.getStorageStats();
         const uploadHistory = mockDB.getUploadHistoryData();
-        
+
         const allFiles = mockDB.getMockFiles().filter(f => !f.isDeleted);
         const pinned = allFiles.filter(f => f.isPinned || f.isStarred);
         const recent = [...allFiles].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
@@ -554,7 +566,7 @@ export const apiService = {
           }
         };
       }
-      
+
       const response = await api.get('/files/list/dashboard-stats');
       if (response.data && response.data.data) {
         response.data = {
