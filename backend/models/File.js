@@ -86,6 +86,10 @@ const fileSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    imagekitFileId: {
+      type: String,
+      default: '',
+    },
     isCompressed: {
       type: Boolean,
       default: false,

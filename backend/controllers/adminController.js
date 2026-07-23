@@ -262,10 +262,14 @@ class AdminController {
         return next(new AppError('File not found', 404));
       }
 
-      // Delete from disk storage
-      const absolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
-      if (fs.existsSync(absolutePath)) {
-        fs.unlinkSync(absolutePath);
+      // Delete from ImageKit
+      if (file.imagekitFileId) {
+        const imagekit = require('../config/imagekit');
+        try {
+          await imagekit.deleteFile(file.imagekitFileId);
+        } catch (err) {
+          console.error(`Failed to delete file ${file.imagekitFileId} from ImageKit:`, err.message);
+        }
       }
 
       // Deduct owner storage used

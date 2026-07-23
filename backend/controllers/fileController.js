@@ -151,24 +151,16 @@ class FileController {
   async downloadFile(req, res, next) {
     try {
       const { id } = req.params;
-      const { file, absolutePath } = await fileService.getFileStream(
+      const { file } = await fileService.getFileStream(
         req.user._id,
         id
       );
-
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${encodeURIComponent(file.fileName)}"`
-      );
-      res.setHeader('Content-Type', file.mimeType);
-      res.setHeader('Content-Length', file.size);
 
       // Increment real downloads count
       file.downloads = (file.downloads || 0) + 1;
       await file.save({ validateBeforeSave: false });
 
-      const stream = fs.createReadStream(absolutePath);
-      stream.pipe(res);
+      res.redirect(file.storagePath);
     } catch (err) {
       next(err);
     }
@@ -177,52 +169,12 @@ class FileController {
   async viewFileInline(req, res, next) {
     try {
       const { id } = req.params;
-      const { file, absolutePath } = await fileService.getFileStream(
+      const { file } = await fileService.getFileStream(
         req.user._id,
         id
       );
 
-      const mimeType = file.mimeType;
-      const size = file.size;
-
-      // Handle Range-based Video Streaming
-      if (mimeType.startsWith('video/')) {
-        const range = req.headers.range;
-        if (range) {
-          const parts = range.replace(/bytes=/, '').split('-');
-          const start = parseInt(parts[0], 10);
-          const end = parts[1] ? parseInt(parts[1], 10) : size - 1;
-
-          if (start >= size || end >= size) {
-            res.status(416).setHeader('Content-Range', `bytes */${size}`);
-            return res.end();
-          }
-
-          const chunksize = end - start + 1;
-          res.writeHead(206, {
-            'Content-Range': `bytes ${start}-${end}/${size}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': chunksize,
-            'Content-Type': mimeType,
-          });
-
-          const fileStream = fs.createReadStream(absolutePath, { start, end });
-          fileStream.pipe(res);
-        } else {
-          res.writeHead(200, {
-            'Content-Length': size,
-            'Content-Type': mimeType,
-          });
-          const fileStream = fs.createReadStream(absolutePath);
-          fileStream.pipe(res);
-        }
-      } else {
-        // Standard pipes for images and PDFs
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Length', size);
-        const fileStream = fs.createReadStream(absolutePath);
-        fileStream.pipe(res);
-      }
+      res.redirect(file.storagePath);
     } catch (err) {
       next(err);
     }
@@ -514,10 +466,14 @@ class FileController {
   async emptyTrash(req, res, next) {
     try {
       const files = await File.find({ owner: req.user._id, isDeleted: true });
+      const imagekit = require('../config/imagekit');
       for (const file of files) {
-        const absolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
-        if (fs.existsSync(absolutePath)) {
-          fs.unlinkSync(absolutePath);
+        if (file.imagekitFileId) {
+          try {
+            await imagekit.deleteFile(file.imagekitFileId);
+          } catch (err) {
+            console.error(`Failed to delete file ${file.imagekitFileId} from ImageKit:`, err.message);
+          }
         }
       }
 

@@ -2,16 +2,8 @@ const multer = require('multer');
 const path = require('path');
 const AppError = require('../utils/AppError');
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Storage configuration (In-Memory for direct upload to ImageKit)
+const storage = multer.memoryStorage();
 
 // File filter (images only)
 const fileFilter = (req, file, cb) => {

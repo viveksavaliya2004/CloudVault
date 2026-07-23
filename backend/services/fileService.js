@@ -1,9 +1,9 @@
-const fs = require('fs');
 const path = require('path');
 const File = require('../models/File');
 const User = require('../models/User');
 const Folder = require('../models/Folder');
 const AppError = require('../utils/AppError');
+const imagekit = require('../config/imagekit');
 
 class FileService {
   async processUpload(userId, file, folderId) {
@@ -61,13 +61,10 @@ class FileService {
     }
 
     if (!isTypeAllowed) {
-      // Delete uploaded file from disk to prevent junk
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       throw new AppError('Unsupported file type. Only standard Images, PDFs, Videos, Documents, and ZIP Archives are allowed.', 400);
     }
 
     if (size > maxSizeLimit) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       throw new AppError(`${allowedTypeName} upload limit is ${maxSizeLimit / (1024 * 1024)}MB. Provided file size is ${(size / (1024 * 1024)).toFixed(2)}MB.`, 400);
     }
 
@@ -76,7 +73,6 @@ class FileService {
     if (folderId && folderId !== 'root') {
       const folder = await Folder.findOne({ _id: folderId, owner: userId, isDeleted: false });
       if (!folder) {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
         throw new AppError('Target folder not found', 404);
       }
       parentFolderId = folder._id;
@@ -85,17 +81,28 @@ class FileService {
     // Validate storage limit
     const user = await User.findById(userId);
     if (!user) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       throw new AppError('User not found', 404);
     }
 
     if (user.storageUsed + size > user.storageLimit) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       throw new AppError('Storage limit exceeded. Cannot upload file.', 400);
     }
 
+    // Upload buffer to ImageKit
+    let uploadResponse;
+    try {
+      uploadResponse = await imagekit.files.upload({
+        file: file.buffer.toString('base64'),
+        fileName: file.originalname,
+        folder: '/cloudvault',
+        useUniqueFileName: true,
+      });
+    } catch (err) {
+      console.error('ImageKit upload error:', err);
+      throw new AppError('Failed to upload file to cloud storage: ' + err.message, 500);
+    }
+
     // Create File in DB
-    const relativeStoragePath = `/uploads/${file.filename}`;
     const fileDoc = await File.create({
       owner: userId,
       folderId: parentFolderId,
@@ -104,7 +111,9 @@ class FileService {
       size: size,
       mimeType: mimeType,
       extension: extension,
-      storagePath: relativeStoragePath,
+      storagePath: uploadResponse.url,
+      thumbnailUrl: uploadResponse.thumbnailUrl || uploadResponse.url,
+      imagekitFileId: uploadResponse.fileId,
     });
 
     // Update User storageUsed
@@ -267,13 +276,7 @@ class FileService {
       throw new AppError('File not found', 404);
     }
 
-    // Resolve absolute path to the file
-    const absolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
-    if (!fs.existsSync(absolutePath)) {
-      throw new AppError('File content not found on server disk', 404);
-    }
-
-    return { file, absolutePath };
+    return { file };
   }
 
   async duplicateFile(userId, fileId) {
@@ -292,12 +295,6 @@ class FileService {
       throw new AppError('Storage limit exceeded. Cannot duplicate file.', 400);
     }
 
-    // Determine paths
-    const originalAbsolutePath = path.join(__dirname, '../uploads', file.storagePath.replace(/^\/uploads\//, ''));
-    if (!fs.existsSync(originalAbsolutePath)) {
-      throw new AppError('Original file content not found on server disk', 404);
-    }
-
     const ext = path.extname(file.originalName);
     const base = path.basename(file.originalName, ext);
     const newOriginalName = `${base} - Copy${ext}`;
@@ -306,14 +303,19 @@ class FileService {
     const filenameBase = path.basename(file.fileName, extension);
     const newFileName = `${filenameBase} - Copy${extension}`;
 
-    // Generate unique storage name on disk
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const storageName = `${file.mimeType.startsWith('image/') ? 'avatar' : 'file'}-${uniqueSuffix}${extension}`;
-    const newStoragePath = `/uploads/${storageName}`;
-    const newAbsolutePath = path.join(__dirname, '../uploads', storageName);
-
-    // Copy file on disk
-    fs.copyFileSync(originalAbsolutePath, newAbsolutePath);
+    // Duplicate on ImageKit using file URL
+    let uploadResponse;
+    try {
+      uploadResponse = await imagekit.files.upload({
+        file: file.storagePath, // original URL
+        fileName: newOriginalName,
+        folder: '/cloudvault',
+        useUniqueFileName: true,
+      });
+    } catch (err) {
+      console.error('ImageKit duplicate error:', err);
+      throw new AppError('Failed to duplicate file on cloud storage: ' + err.message, 500);
+    }
 
     // Create DB document
     const duplicatedFile = await File.create({
@@ -325,7 +327,9 @@ class FileService {
       mimeType: file.mimeType,
       extension: file.extension,
       hash: file.hash,
-      storagePath: newStoragePath,
+      storagePath: uploadResponse.url,
+      thumbnailUrl: uploadResponse.thumbnailUrl || uploadResponse.url,
+      imagekitFileId: uploadResponse.fileId,
       isStarred: file.isStarred,
       isFavourite: file.isFavourite,
       isArchived: file.isArchived,

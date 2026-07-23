@@ -31,61 +31,7 @@ const processFileJob = async (job) => {
   await file.save({ validateBeforeSave: false });
 
   // STEP 2: Thumbnail Generation
-  console.log(`📷 [Pipeline Step 2/5] Generating Thumbnail for "${file.fileName}"...`);
-  const isPdf = (file.mimeType && file.mimeType.includes('pdf')) ||
-    (file.fileName && file.fileName.toLowerCase().endsWith('.pdf')) ||
-    (file.originalName && file.originalName.toLowerCase().endsWith('.pdf'));
-
-  if (file.mimeType && file.mimeType.startsWith('image/')) {
-    file.thumbnailPath = file.storagePath;
-    file.thumbnailUrl = file.storagePath;
-  } else if (isPdf) {
-    try {
-      const uploadsDir = path.join(__dirname, '../uploads');
-      const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
-      if (!fs.existsSync(thumbnailsDir)) {
-        fs.mkdirSync(thumbnailsDir, { recursive: true });
-      }
-
-      const relativeStoragePath = (file.storagePath || '').replace(/^\/uploads\//, '').replace(/^uploads\//, '');
-      const absolutePdfPath = path.join(uploadsDir, relativeStoragePath);
-
-      if (fs.existsSync(absolutePdfPath) && poppler) {
-        const outPrefix = `pdf_preview_${file._id}`;
-        const options = {
-          format: 'png',
-          out_dir: thumbnailsDir,
-          out_prefix: outPrefix,
-          page: 1
-        };
-
-        await poppler.convert(absolutePdfPath, options);
-
-        // pdf-poppler names page 1 output files as ${outPrefix}-1.png or ${outPrefix}-01.png
-        const expectedGeneratedFile1 = path.join(thumbnailsDir, `${outPrefix}-1.png`);
-        const expectedGeneratedFile01 = path.join(thumbnailsDir, `${outPrefix}-01.png`);
-
-        if (fs.existsSync(expectedGeneratedFile1)) {
-          file.thumbnailPath = `/uploads/thumbnails/${outPrefix}-1.png`;
-          file.thumbnailUrl = file.thumbnailPath;
-        } else if (fs.existsSync(expectedGeneratedFile01)) {
-          file.thumbnailPath = `/uploads/thumbnails/${outPrefix}-01.png`;
-          file.thumbnailUrl = file.thumbnailPath;
-        } else {
-          const filesInThumbDir = fs.readdirSync(thumbnailsDir);
-          const matchedThumb = filesInThumbDir.find(f => f.startsWith(outPrefix));
-          if (matchedThumb) {
-            file.thumbnailPath = `/uploads/thumbnails/${matchedThumb}`;
-            file.thumbnailUrl = file.thumbnailPath;
-          }
-        }
-      }
-    } catch (pdfErr) {
-      console.error(`⚠️ [Worker] Failed to generate PDF thumbnail for "${file.fileName}":`, pdfErr.message);
-      // Non-blocking: upload remains intact if poppler fails
-    }
-  }
-
+  console.log(`📷 [Pipeline Step 2/5] Thumbnail is handled by ImageKit (URL: "${file.thumbnailUrl}").`);
   await file.save({ validateBeforeSave: false });
 
   // STEP 3: Compression Optimization

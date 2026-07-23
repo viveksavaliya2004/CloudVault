@@ -66,7 +66,7 @@ class UserController {
         return next(new AppError('Please upload an image file', 400));
       }
 
-      const updatedUser = await userService.uploadAvatar(req.user._id, req.file.filename);
+      const updatedUser = await userService.uploadAvatar(req.user._id, req.file);
       await cacheService.invalidateProfile(req.user._id);
 
       res.status(200).json({

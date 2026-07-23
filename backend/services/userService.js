@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
+const imagekit = require('../config/imagekit');
 
 class UserService {
   async updateProfile(userId, name) {
@@ -23,11 +24,23 @@ class UserService {
     return userJson;
   }
 
-  async uploadAvatar(userId, filename) {
-    const avatarPath = `/uploads/${filename}`;
+  async uploadAvatar(userId, file) {
+    let uploadResponse;
+    try {
+      uploadResponse = await imagekit.files.upload({
+        file: file.buffer.toString('base64'),
+        fileName: `avatar-${userId}-${Date.now()}`,
+        folder: '/cloudvault/avatars',
+        useUniqueFileName: true,
+      });
+    } catch (err) {
+      console.error('ImageKit avatar upload error:', err);
+      throw new AppError('Failed to upload avatar to cloud storage: ' + err.message, 500);
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { avatar: avatarPath },
+      { avatar: uploadResponse.url },
       { returnDocument: 'after', runValidators: true }
     );
     if (!updatedUser) {
