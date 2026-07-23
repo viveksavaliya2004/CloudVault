@@ -101,6 +101,13 @@ export const AdminPanel = () => {
 
   useEffect(() => {
     updateAnalytics(startDate, endDate);
+
+    // Set up polling interval to update the analytics in live time (every 5 seconds)
+    const interval = setInterval(() => {
+      updateAnalytics(startDate, endDate);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [startDate, endDate, updateAnalytics]);
 
   const fetchAdminData = useCallback(async () => {
