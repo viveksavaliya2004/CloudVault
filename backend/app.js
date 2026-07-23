@@ -17,7 +17,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const requestLogger = require('./middleware/requestLogMiddleware');
+
 // Mount Routes
+app.use(requestLogger);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/folders', folderRoutes);

@@ -89,37 +89,15 @@ export const AdminPanel = () => {
     ]
   });
 
-  const updateAnalytics = useCallback((start, end) => {
-    const sDate = new Date(start);
-    const eDate = new Date(end);
-    const diffTime = Math.abs(eDate - sDate) || 0;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-
-    const baseRequests = 12.5; // per day
-    const totalRequests = Math.round(diffDays * baseRequests * 1.5 + Math.sin(diffDays) * 10) || 10;
-    const hits = Math.round(totalRequests * 0.8616) || 8;
-    const misses = Math.round(totalRequests * 0.1384) || 2;
-    const errors = Math.max(0, totalRequests - (hits + misses));
-    const bandwidthMB = parseFloat((totalRequests * 0.0135).toFixed(1)) || 0.1;
-
-    const urls = [
-      { url: 'Default', requests: totalRequests, bandwidth: `${bandwidthMB} MB`, percent: '100.00%' },
-      { url: '/api/files/download', requests: Math.round(totalRequests * 0.55) || 5, bandwidth: `${(bandwidthMB * 0.7).toFixed(1)} MB`, percent: '55.00%' },
-      { url: '/api/files/upload', requests: Math.round(totalRequests * 0.25) || 2, bandwidth: `${(bandwidthMB * 0.2).toFixed(1)} MB`, percent: '25.00%' },
-      { url: '/api/files/list', requests: Math.round(totalRequests * 0.15) || 2, bandwidth: `${(bandwidthMB * 0.08).toFixed(1)} MB`, percent: '15.00%' },
-      { url: '/api/users/profile', requests: Math.max(1, totalRequests - (Math.round(totalRequests * 0.95) || 9)), bandwidth: `${(bandwidthMB * 0.02).toFixed(1)} MB`, percent: '5.00%' },
-    ];
-
-    setAnalyticsData({
-      totalRequests,
-      hits,
-      misses,
-      errors,
-      hitRate: ((hits / totalRequests) * 100).toFixed(1),
-      bandwidthMB,
-      urls
-    });
-  }, []);
+  const updateAnalytics = useCallback(async (start, end) => {
+    try {
+      const res = await apiService.admin.getAnalytics(start, end);
+      setAnalyticsData(res.data);
+    } catch (err) {
+      console.error('Failed to fetch analytics data:', err);
+      addToast('Failed to load real-time analytics', 'error');
+    }
+  }, [addToast]);
 
   useEffect(() => {
     updateAnalytics(startDate, endDate);

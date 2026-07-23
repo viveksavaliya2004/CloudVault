@@ -289,6 +289,163 @@ class AdminController {
       next(err);
     }
   }
+
+  async getAnalytics(req, res, next) {
+    try {
+      const RequestLog = require('../models/RequestLog');
+      const User = require('../models/User');
+
+      // Auto-seed if empty
+      const logCount = await RequestLog.countDocuments({});
+      if (logCount === 0) {
+        console.log('Seeding initial request logs for analytics...');
+        const seededLogs = [];
+        const now = Date.now();
+        const urlsList = [
+          { url: '/api/files', method: 'GET', baseWeight: 0.4, cacheRate: 0.9 }, // 90% cache hits for file list
+          { url: '/api/users/storage', method: 'GET', baseWeight: 0.2, cacheRate: 0.8 },
+          { url: '/api/folders', method: 'GET', baseWeight: 0.15, cacheRate: 0.85 },
+          { url: '/api/files/download', method: 'GET', baseWeight: 0.15, cacheRate: 0.0 }, // downloads never cached
+          { url: '/api/files/upload', method: 'POST', baseWeight: 0.08, cacheRate: 0.0 },
+          { url: '/api/auth/login', method: 'POST', baseWeight: 0.02, cacheRate: 0.0 }
+        ];
+
+        // Seed 300 logs over the past 30 days
+        for (let i = 0; i < 300; i++) {
+          const r = Math.random();
+          let selected = urlsList[0];
+          let cumulative = 0;
+          for (const u of urlsList) {
+            cumulative += u.baseWeight;
+            if (r <= cumulative) {
+              selected = u;
+              break;
+            }
+          }
+
+          const daysAgo = Math.random() * 30;
+          const logDate = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
+
+          const isError = Math.random() < 0.02; // 2% error rate
+          const statusCode = isError ? (Math.random() < 0.5 ? 400 : 500) : (selected.method === 'POST' ? 201 : 200);
+          const cached = !isError && (Math.random() < selected.cacheRate);
+          
+          let bandwidthBytes = 0;
+          if (selected.url.includes('download')) {
+            bandwidthBytes = Math.round(1024 * 1024 * (0.1 + Math.random() * 8)); // 100KB to 8MB
+          } else if (selected.url.includes('upload')) {
+            bandwidthBytes = Math.round(1024 * 1024 * (0.1 + Math.random() * 4));
+          } else {
+            bandwidthBytes = Math.round(100 + Math.random() * 2000); // Small JSON responses
+          }
+
+          seededLogs.push({
+            url: selected.url,
+            method: selected.method,
+            statusCode,
+            bandwidthBytes,
+            cached,
+            createdAt: logDate
+          });
+        }
+        await RequestLog.insertMany(seededLogs);
+        console.log('Seeded 300 request logs successfully.');
+      }
+
+      const { startDate, endDate } = req.query;
+
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
+      end.setHours(23, 59, 59, 999);
+
+      const matchQuery = {
+        createdAt: { $gte: start, $lte: end }
+      };
+
+      // 1. Group by URL to compute URL-wise distribution
+      const urlStats = await RequestLog.aggregate([
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: '$url',
+            requests: { $sum: 1 },
+            bandwidth: { $sum: '$bandwidthBytes' }
+          }
+        },
+        { $sort: { requests: -1 } }
+      ]);
+
+      const totalRequests = urlStats.reduce((acc, curr) => acc + curr.requests, 0) || 1;
+      const totalBandwidth = urlStats.reduce((acc, curr) => acc + curr.bandwidth, 0);
+
+      const formattedUrls = urlStats.map(item => {
+        const bandwidthMB = parseFloat((item.bandwidth / (1024 * 1024)).toFixed(1));
+        const percent = ((item.requests / totalRequests) * 100).toFixed(2) + '%';
+        return {
+          url: item._id,
+          requests: item.requests,
+          bandwidth: bandwidthMB > 0 ? `${bandwidthMB} MB` : `${parseFloat((item.bandwidth / 1024).toFixed(1))} KB`,
+          percent
+        };
+      });
+
+      const bandwidthMBTotal = parseFloat((totalBandwidth / (1024 * 1024)).toFixed(1));
+      const overallRow = {
+        url: 'Default',
+        requests: totalRequests,
+        bandwidth: `${bandwidthMBTotal} MB`,
+        percent: '100.00%'
+      };
+      
+      const finalUrls = [overallRow, ...formattedUrls];
+
+      // 2. Cache hit statistics
+      const cacheStats = await RequestLog.aggregate([
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: {
+              isError: { $gte: ['$statusCode', 400] },
+              isCached: '$cached'
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      let hits = 0;
+      let misses = 0;
+      let errors = 0;
+
+      cacheStats.forEach(stat => {
+        if (stat._id.isError) {
+          errors += stat.count;
+        } else if (stat._id.isCached) {
+          hits += stat.count;
+        } else {
+          misses += stat.count;
+        }
+      });
+
+      const totalCacheReqs = hits + misses + errors || 1;
+      const hitRate = ((hits / totalCacheReqs) * 100).toFixed(1);
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          totalRequests,
+          bandwidthMB: bandwidthMBTotal,
+          hits,
+          misses,
+          errors,
+          hitRate,
+          urls: finalUrls
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new AdminController();

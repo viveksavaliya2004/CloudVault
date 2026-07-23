@@ -379,6 +379,7 @@ class FileController {
       const cachedStorage = await cacheService.getStorageUsage(userId);
 
       if (cachedRecentFiles && cachedStorage) {
+        req.cacheHit = true;
         console.log(`⚡ [CACHE HIT] Serving Dashboard Stats (Recent Files & Storage Usage) for user ${userId} from Cache (MongoDB Aggregation Skipped)`);
       } else {
         console.log(`📦 [CACHE MISS] Fetching Dashboard Stats (Recent Files & Storage Usage) for user ${userId} from MongoDB & Caching`);

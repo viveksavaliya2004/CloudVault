@@ -1016,6 +1016,29 @@ export const apiService = {
         return { data: { success: true } };
       }
       return api.delete(`/admin/files/${id}`);
+    },
+    getAnalytics: async (startDate, endDate) => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          data: {
+            totalRequests: 289,
+            bandwidthMB: 3.9,
+            hits: 249,
+            misses: 40,
+            errors: 0,
+            hitRate: '86.2',
+            urls: [
+              { url: 'Default', requests: 289, bandwidth: '3.9 MB', percent: '100.00%' }
+            ]
+          }
+        };
+      }
+      const response = await api.get(`/admin/analytics?startDate=${startDate}&endDate=${endDate}`);
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
     }
   }
 };

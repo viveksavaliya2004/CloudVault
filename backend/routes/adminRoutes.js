@@ -12,5 +12,6 @@ router.get('/stats', adminController.getStats);
 router.get('/users', adminController.getUsers);
 router.patch('/users/:id/toggle-block', adminController.toggleBlockUser);
 router.delete('/files/:id', adminController.deleteFile);
+router.get('/analytics', adminController.getAnalytics);
 
 module.exports = router;
