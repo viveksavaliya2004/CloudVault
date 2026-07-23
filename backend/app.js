@@ -9,8 +9,15 @@ const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 require('./workers/fileProcessorWorker');
 
+const { corsMiddleware, helmetMiddleware, rateLimiter } = require('./middleware/securityMiddleware');
+
 // Initialize express app
 const app = express();
+
+// Security & CORS Middlewares
+app.use(corsMiddleware);
+app.use(helmetMiddleware);
+app.use('/api', rateLimiter);
 
 // Global Middlewares
 app.use(express.json());
