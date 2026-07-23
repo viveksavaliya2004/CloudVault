@@ -473,7 +473,7 @@ export const apiService = {
           if (uploadedChunks.includes(chunkIndex)) {
             const currentProgress = Math.round(((chunkIndex + 1) * 100) / totalChunks);
             if (onProgress) {
-              onProgress(currentProgress, { statusText: `Chunk ${chunkIndex + 1}/${totalChunks}` });
+              onProgress(currentProgress, { statusText: `Uploading: ${currentProgress}%` });
             }
             continue;
           }
@@ -494,7 +494,7 @@ export const apiService = {
 
               if (onProgress) {
                 const baseProgress = Math.round((chunkIndex * 100) / totalChunks);
-                onProgress(baseProgress, { statusText: `Uploading chunk ${chunkIndex + 1}/${totalChunks}...` });
+                onProgress(baseProgress, { statusText: `Uploading: ${baseProgress}%` });
               }
 
               const res = await api.post('/files/upload/chunk', formData, {
@@ -506,7 +506,7 @@ export const apiService = {
                     const overallPercent = Math.round(
                       (chunkIndex * 100) / totalChunks + chunkPercent / totalChunks
                     );
-                    onProgress(overallPercent, { statusText: `Uploading chunk ${chunkIndex + 1}/${totalChunks}...` });
+                    onProgress(overallPercent, { statusText: `Uploading: ${overallPercent}%` });
                   }
                 }
               });
@@ -579,7 +579,7 @@ export const apiService = {
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total && onProgress) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress(percentCompleted);
+            onProgress(percentCompleted, { statusText: `Uploading: ${percentCompleted}%` });
           }
         }
       });
