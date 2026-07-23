@@ -16,6 +16,12 @@ router.use(protect);
 router.post('/upload/single', upload.single('file'), fileController.uploadSingleFile);
 router.post('/upload/multiple', upload.array('files', 10), fileController.uploadMultipleFiles);
 
+// Chunked Upload Routes
+router.post('/upload/chunk/init', fileController.initializeChunkUpload);
+router.post('/upload/chunk', upload.chunkUpload.single('file'), fileController.uploadChunk);
+router.get('/upload/chunk/status/:uploadId', fileController.getChunkStatus);
+router.post('/upload/chunk/complete', fileController.completeChunkUpload);
+
 // Listings and custom queries (above dynamic /:id parameter)
 router.get('/list/all', fileController.getAllFiles);
 router.get('/list/trash', fileController.getTrashList);

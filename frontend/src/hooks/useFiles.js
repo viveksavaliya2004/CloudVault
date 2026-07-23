@@ -27,8 +27,8 @@ export const useUploadFileMutation = () => {
   const { addToast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ file, parentFolderId, onProgress }) => {
-      return apiService.files.upload(file, parentFolderId, onProgress);
+    mutationFn: async ({ file, parentFolderId, onProgress, signal }) => {
+      return apiService.files.upload(file, parentFolderId, onProgress, signal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folderContents'] });
@@ -36,7 +36,10 @@ export const useUploadFileMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       addToast('File uploaded successfully', 'success');
     },
-    onError: () => {
+    onError: (err) => {
+      if (err?.name === 'CanceledError' || err?.message === 'canceled') {
+        return;
+      }
       addToast('Failed to upload file', 'error');
     }
   });

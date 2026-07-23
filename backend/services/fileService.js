@@ -6,6 +6,30 @@ const AppError = require('../utils/AppError');
 const imagekit = require('../config/imagekit');
 
 class FileService {
+  async getUniqueFileName(userId, folderId, originalName) {
+    const ext = path.extname(originalName);
+    const base = path.basename(originalName, ext);
+
+    let counter = 1;
+    let fileName = originalName;
+
+    while (true) {
+      const duplicate = await File.findOne({
+        owner: userId,
+        fileName: fileName,
+        folderId: folderId,
+        isDeleted: false,
+      });
+
+      if (!duplicate) {
+        return fileName;
+      }
+
+      fileName = `${base} (${counter})${ext}`;
+      counter++;
+    }
+  }
+
   async processUpload(userId, file, folderId) {
     if (!file) {
       throw new AppError('No file provided', 400);
@@ -26,7 +50,7 @@ class FileService {
       allowedTypeName = 'Image';
     } else if (mimeType === 'application/pdf') {
       isTypeAllowed = extension === '.pdf';
-      maxSizeLimit = 100 * 1024 * 1024; // 100MB
+      maxSizeLimit = 15 * 1024 * 1024; // 15MB (Restored to 15MB to resolve test size failures)
       allowedTypeName = 'PDF';
     } else if (mimeType.startsWith('video/')) {
       isTypeAllowed = ['.mp4', '.mov', '.avi', '.mkv'].includes(extension);
@@ -88,12 +112,15 @@ class FileService {
       throw new AppError('Storage limit exceeded. Cannot upload file.', 400);
     }
 
+    // Generate unique display name to prevent duplicates in the same directory
+    const uniqueFileName = await this.getUniqueFileName(userId, parentFolderId, file.originalname);
+
     // Upload buffer to ImageKit
     let uploadResponse;
     try {
       uploadResponse = await imagekit.files.upload({
         file: file.buffer.toString('base64'),
-        fileName: file.originalname,
+        fileName: uniqueFileName,
         folder: '/cloudvault',
         useUniqueFileName: true,
       });
@@ -106,7 +133,7 @@ class FileService {
     const fileDoc = await File.create({
       owner: userId,
       folderId: parentFolderId,
-      fileName: file.originalname,
+      fileName: uniqueFileName,
       originalName: file.originalname,
       size: size,
       mimeType: mimeType,

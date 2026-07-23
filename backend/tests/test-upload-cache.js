@@ -74,13 +74,13 @@ async function runUploadCacheVerification() {
     console.log('========================================================================');
 
     // Create a temporary sample dummy file to upload
-    const tempFilePath = path.join(__dirname, 'sample-upload-test.txt');
+    const tempFilePath = path.join(__dirname, 'sample-upload-test.png');
     fs.writeFileSync(tempFilePath, 'CloudVault Cache Test Sample Content');
 
     const formData = new FormData();
     const fileBuffer = fs.readFileSync(tempFilePath);
-    const fileBlob = new Blob([fileBuffer], { type: 'text/plain' });
-    formData.append('file', fileBlob, 'sample-upload-test.txt');
+    const fileBlob = new Blob([fileBuffer], { type: 'image/png' });
+    formData.append('file', fileBlob, 'sample-upload-test.png');
 
     const uploadRes = await fetch(`${baseUrl}/files/upload/single`, {
       method: 'POST',

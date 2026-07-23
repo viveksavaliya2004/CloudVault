@@ -354,7 +354,7 @@ export const apiService = {
       }
       return response;
     },
-    upload: async (file, parentFolderId, onProgress) => {
+    upload: async (file, parentFolderId, onProgress, signal) => {
       if (USE_MOCK) {
         const totalSteps = 10;
         for (let i = 1; i <= totalSteps; i++) {
@@ -375,12 +375,135 @@ export const apiService = {
         return { data: newFile };
       }
 
+      const CHUNK_THRESHOLD = 5 * 1024 * 1024; // 5MB
+      if (file.size > CHUNK_THRESHOLD) {
+        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+        // 1. Initialize Chunk Upload Session
+        let uploadId;
+        let uploadedChunks = [];
+        try {
+          const initRes = await api.post('/files/upload/chunk/init', {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            folderId: parentFolderId,
+            totalChunks,
+          }, { signal });
+          uploadId = initRes.data.data.uploadId;
+          uploadedChunks = initRes.data.data.uploadedChunks || [];
+        } catch (err) {
+          console.error('Failed to initialize chunk upload', err);
+          throw err;
+        }
+
+        // 2. Upload chunks sequentially
+        const delayMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          if (uploadedChunks.includes(chunkIndex)) {
+            const currentProgress = Math.round(((chunkIndex + 1) * 100) / totalChunks);
+            if (onProgress) {
+              onProgress(currentProgress, { statusText: `Chunk ${chunkIndex + 1}/${totalChunks}` });
+            }
+            continue;
+          }
+
+          const start = chunkIndex * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunkBlob = file.slice(start, end);
+
+          let chunkUploaded = false;
+          let attempt = 0;
+
+          while (!chunkUploaded) {
+            try {
+              const formData = new FormData();
+              formData.append('uploadId', uploadId);
+              formData.append('chunkIndex', chunkIndex.toString());
+              formData.append('file', chunkBlob, file.name);
+
+              if (onProgress) {
+                const baseProgress = Math.round((chunkIndex * 100) / totalChunks);
+                onProgress(baseProgress, { statusText: `Uploading chunk ${chunkIndex + 1}/${totalChunks}...` });
+              }
+
+              const res = await api.post('/files/upload/chunk', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                signal,
+                onUploadProgress: (progressEvent) => {
+                  if (progressEvent.total && onProgress) {
+                    const chunkPercent = (progressEvent.loaded / progressEvent.total) * 100;
+                    const overallPercent = Math.round(
+                      (chunkIndex * 100) / totalChunks + chunkPercent / totalChunks
+                    );
+                    onProgress(overallPercent, { statusText: `Uploading chunk ${chunkIndex + 1}/${totalChunks}...` });
+                  }
+                }
+              });
+
+              uploadedChunks = res.data.data.uploadedChunks || [];
+              chunkUploaded = true;
+            } catch (error) {
+              if (signal?.aborted || error?.name === 'CanceledError' || error?.message === 'canceled') {
+                throw error;
+              }
+
+              attempt++;
+              console.warn(`Chunk upload failed (index: ${chunkIndex}, attempt: ${attempt}). Retrying...`, error);
+
+              // Update state in UI to reconnecting
+              const currentProgress = Math.round((chunkIndex * 100) / totalChunks);
+              if (onProgress) {
+                onProgress(currentProgress, { statusText: 'Reconnecting... Auto-resuming' });
+              }
+
+              const backoffTime = Math.min(1000 * Math.pow(2, attempt), 10000);
+              await delayMs(backoffTime);
+
+              try {
+                const statusRes = await api.get(`/files/upload/chunk/status/${uploadId}`, { signal });
+                uploadedChunks = statusRes.data.data.uploadedChunks || [];
+
+                if (uploadedChunks.includes(chunkIndex)) {
+                  chunkUploaded = true;
+                }
+              } catch (statusError) {
+                if (signal?.aborted || statusError?.name === 'CanceledError' || statusError?.message === 'canceled') {
+                  throw statusError;
+                }
+                console.warn('Failed to fetch status from server, still retrying...', statusError);
+              }
+            }
+          }
+        }
+
+        // 3. Complete chunk upload & trigger assembly
+        if (onProgress) {
+          onProgress(99, { statusText: 'Assembling file...' });
+        }
+
+        const completeRes = await api.post('/files/upload/chunk/complete', { uploadId }, { signal });
+
+        if (onProgress) {
+          onProgress(100, { statusText: 'Complete' });
+        }
+
+        if (completeRes.data && completeRes.data.data) {
+          completeRes.data = mapFile(completeRes.data.data.file);
+        }
+        return completeRes;
+      }
+
+      // Default fallback for small files (<= 5MB)
       const formData = new FormData();
       formData.append('file', file);
       if (parentFolderId) formData.append('folderId', parentFolderId);
 
       const response = await api.post('/files/upload/single', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        signal,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total && onProgress) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

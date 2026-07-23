@@ -89,9 +89,10 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
     uploadMutation.mutate({
       file: pendingItem.file,
       parentFolderId: currentFolderId,
-      onProgress: (progress) => {
-        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, progress } : item));
-      }
+      onProgress: (progress, statusInfo) => {
+        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, progress, statusText: statusInfo?.statusText || '' } : item));
+      },
+      signal: pendingItem.abortController?.signal
     }, {
       onSuccess: () => {
         setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'success', progress: 100 } : item));
@@ -110,7 +111,8 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
       id: Math.random().toString(36).substring(2, 9),
       file,
       progress: 0,
-      status: 'pending'
+      status: 'pending',
+      abortController: new AbortController()
     }));
 
     const isCurrentlyUploading = queueRef.current.some(item => item.status === 'uploading');
@@ -125,7 +127,7 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   const handleRetry = (id) => {
     const isCurrentlyUploading = queueRef.current.some(item => item.status === 'uploading');
 
-    setQueue(prev => prev.map(item => item.id === id ? { ...item, status: 'pending', progress: 0 } : item));
+    setQueue(prev => prev.map(item => item.id === id ? { ...item, status: 'pending', progress: 0, abortController: new AbortController() } : item));
 
     if (!isCurrentlyUploading) {
       setTimeout(startNextUpload, 50);
@@ -133,6 +135,10 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   };
 
   const handleRemove = (id) => {
+    const item = queue.find(q => q.id === id);
+    if (item && item.status === 'uploading' && item.abortController) {
+      item.abortController.abort();
+    }
     setQueue(prev => prev.filter(item => item.id !== id));
   };
 
@@ -241,10 +247,17 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                         </div>
                         
                         <div className="flex-grow min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
                             <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{item.file.name}</p>
                             <p className="text-[10px] text-slate-455 font-semibold flex-shrink-0">{formatBytes(item.file.size)}</p>
                           </div>
+                          
+                          {item.statusText && (
+                            <p className="text-[10px] text-primary font-bold animate-pulse mb-1 flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-primary animate-ping"></span>
+                              <span>{item.statusText}</span>
+                            </p>
+                          )}
                           
                           <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                             <motion.div
@@ -288,12 +301,17 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                               </span>
                             </>
                           )}
-                          {item.status !== 'uploading' && (
+                          {item.status !== 'success' && (
                             <button
                               onClick={() => handleRemove(item.id)}
                               className="p-1 hover:bg-red-500/10 hover:text-danger rounded-lg text-slate-450 transition-colors"
+                              title={item.status === 'uploading' ? "Cancel upload" : "Remove from queue"}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {item.status === 'uploading' ? (
+                                <X className="w-3.5 h-3.5" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           )}
                         </div>

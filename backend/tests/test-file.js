@@ -91,6 +91,38 @@ async function runTests() {
         throw new Error(`StorageUsed is incorrect. Expected ${mockImageBlob.size}, got ${userAfterUpload.storageUsed}`);
       }
 
+      // 2.1. Duplicate Upload Naming Convention
+      console.log('\n--- Test 2.1: Duplicate Upload Naming Convention ---');
+      const dupForm1 = new FormData();
+      dupForm1.append('file', mockImageBlob, 'test-image.png');
+
+      const dupRes1 = await fetch(`${BASE_FILE_URL}/upload/single`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+        body: dupForm1,
+      });
+      const dupData1 = await dupRes1.json();
+      console.log('Duplicate 1 Status:', dupRes1.status, 'fileName:', dupData1.data.file.fileName);
+      if (dupRes1.status !== 201) throw new Error('First duplicate upload failed');
+      if (dupData1.data.file.fileName !== 'test-image (1).png') {
+        throw new Error(`Expected fileName to be "test-image (1).png", got "${dupData1.data.file.fileName}"`);
+      }
+
+      const dupForm2 = new FormData();
+      dupForm2.append('file', mockImageBlob, 'test-image.png');
+
+      const dupRes2 = await fetch(`${BASE_FILE_URL}/upload/single`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+        body: dupForm2,
+      });
+      const dupData2 = await dupRes2.json();
+      console.log('Duplicate 2 Status:', dupRes2.status, 'fileName:', dupData2.data.file.fileName);
+      if (dupRes2.status !== 201) throw new Error('Second duplicate upload failed');
+      if (dupData2.data.file.fileName !== 'test-image (2).png') {
+        throw new Error(`Expected fileName to be "test-image (2).png", got "${dupData2.data.file.fileName}"`);
+      }
+
       // 3. Format Validation - Disallowed format
       console.log('\n--- Test 3: Format Validation (Upload Executable file) ---');
       const badForm = new FormData();

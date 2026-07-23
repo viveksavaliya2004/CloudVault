@@ -6,6 +6,7 @@ const Folder = require('../models/Folder');
 const SharedFile = require('../models/SharedFile');
 const File = require('../models/File');
 const User = require('../models/User');
+const ChunkUpload = require('../models/ChunkUpload');
 const AppError = require('../utils/AppError');
 const cacheService = require('../services/cacheService');
 const { addFileProcessingJob } = require('../config/queue');
@@ -431,6 +432,14 @@ class FileController {
       const activeFoldersCount = await Folder.countDocuments({ owner: req.user._id, isDeleted: false });
       const recentUploads = [...files].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
 
+      // Cache stats data for user
+      await cacheService.setRecentFiles(userId, recentFiles);
+      await cacheService.setStorageUsage(userId, {
+        storageUsed: req.user.storageUsed,
+        storageRemaining: Math.max(0, req.user.storageLimit - req.user.storageUsed),
+        storageLimit: req.user.storageLimit
+      });
+
       res.status(200).json({
         status: 'success',
         data: {
@@ -735,6 +744,281 @@ class FileController {
         status: 'success',
         message: 'File moved successfully',
         data: { file },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async initializeChunkUpload(req, res, next) {
+    try {
+      const { fileName, fileSize, mimeType, folderId, totalChunks } = req.body;
+
+      if (!fileName || !fileSize || !totalChunks) {
+        return next(new AppError('fileName, fileSize, and totalChunks are required', 400));
+      }
+
+      // Cleanup stale uploads (older than 24h)
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const staleUploads = await ChunkUpload.find({ createdAt: { $lt: cutoff } });
+      for (const upload of staleUploads) {
+        const dir = path.join(__dirname, '../uploads/chunks', upload.uploadId);
+        if (fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+        await ChunkUpload.deleteOne({ _id: upload._id });
+      }
+
+      // Check file size limits
+      const MAX_CHUNK_UPLOAD_LIMIT = 5 * 1024 * 1024 * 1024; // 5GB
+      if (fileSize > MAX_CHUNK_UPLOAD_LIMIT) {
+        return next(new AppError('Upload limit is 5GB. Provided file size is too large.', 400));
+      }
+
+      // Validate allowed file extensions
+      const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.mp4', '.zip', '.docx'];
+      const ext = path.extname(fileName).toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        return next(
+          new AppError(
+            `File type not allowed. Allowed file types: ${ALLOWED_EXTENSIONS.map(e => e.replace('.', '')).join(', ')}`,
+            400
+          )
+        );
+      }
+
+      // Check parent folder if provided
+      let parentFolderId = null;
+      if (folderId && folderId !== 'root') {
+        const folder = await Folder.findOne({ _id: folderId, owner: req.user._id, isDeleted: false });
+        if (!folder) {
+          return next(new AppError('Target folder not found', 404));
+        }
+        parentFolderId = folder._id;
+      }
+
+      // Validate storage limit
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return next(new AppError('User not found', 404));
+      }
+      if (user.storageUsed + fileSize > user.storageLimit) {
+        return next(new AppError('Storage limit exceeded. Cannot initialize upload.', 400));
+      }
+
+      // Generate a unique upload ID
+      const crypto = require('crypto');
+      const uploadId = 'up_' + crypto.randomBytes(16).toString('hex');
+
+      // Create tracking model entry
+      const chunkUpload = await ChunkUpload.create({
+        uploadId,
+        owner: req.user._id,
+        folderId: parentFolderId,
+        fileName,
+        fileSize,
+        mimeType: mimeType || 'application/octet-stream',
+        extension: ext,
+        totalChunks,
+        uploadedChunks: [],
+      });
+
+      // Create chunks temporary directory
+      const dir = path.join(__dirname, '../uploads/chunks', uploadId);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      res.status(201).json({
+        status: 'success',
+        data: {
+          uploadId: chunkUpload.uploadId,
+          uploadedChunks: chunkUpload.uploadedChunks,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async uploadChunk(req, res, next) {
+    try {
+      const { uploadId, chunkIndex } = req.body;
+
+      if (!uploadId || chunkIndex === undefined) {
+        return next(new AppError('uploadId and chunkIndex are required', 400));
+      }
+
+      const upload = await ChunkUpload.findOne({ uploadId, owner: req.user._id });
+      if (!upload) {
+        return next(new AppError('Chunk upload session not found', 404));
+      }
+
+      const parsedIndex = parseInt(chunkIndex, 10);
+      if (!upload.uploadedChunks.includes(parsedIndex)) {
+        upload.uploadedChunks.push(parsedIndex);
+        await upload.save();
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Chunk uploaded successfully',
+        data: {
+          chunkIndex: parsedIndex,
+          uploadedChunks: upload.uploadedChunks,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getChunkStatus(req, res, next) {
+    try {
+      const { uploadId } = req.params;
+
+      if (!uploadId) {
+        return next(new AppError('uploadId is required', 400));
+      }
+
+      const upload = await ChunkUpload.findOne({ uploadId, owner: req.user._id });
+      if (!upload) {
+        return next(new AppError('Chunk upload session not found or expired', 404));
+      }
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          uploadId: upload.uploadId,
+          uploadedChunks: upload.uploadedChunks,
+          totalChunks: upload.totalChunks,
+          fileSize: upload.fileSize,
+          fileName: upload.fileName,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async completeChunkUpload(req, res, next) {
+    try {
+      const { uploadId } = req.body;
+
+      if (!uploadId) {
+        return next(new AppError('uploadId is required', 400));
+      }
+
+      const upload = await ChunkUpload.findOne({ uploadId, owner: req.user._id });
+      if (!upload) {
+        return next(new AppError('Chunk upload session not found', 404));
+      }
+
+      const dir = path.join(__dirname, '../uploads/chunks', uploadId);
+
+      // Verify that all chunk files exist on disk
+      for (let i = 0; i < upload.totalChunks; i++) {
+        const chunkPath = path.join(dir, `chunk-${i}`);
+        if (!fs.existsSync(chunkPath)) {
+          return next(new AppError(`Missing chunk index ${i} on server`, 400));
+        }
+      }
+
+      // Generate a unique file name
+      const uniqueFileName = await fileService.getUniqueFileName(req.user._id, upload.folderId, upload.fileName);
+      const finalPath = path.join(__dirname, '../uploads', uniqueFileName);
+      const writeStream = fs.createWriteStream(finalPath);
+
+      // Merge chunks asynchronously using stream piping
+      const mergeChunks = (chunkDir, total, destStream) => {
+        return new Promise((resolve, reject) => {
+          let currentChunk = 0;
+
+          function appendNext() {
+            if (currentChunk >= total) {
+              destStream.end();
+              return;
+            }
+
+            const chunkPath = path.join(chunkDir, `chunk-${currentChunk}`);
+            const readStream = fs.createReadStream(chunkPath);
+
+            readStream.on('error', (err) => {
+              reject(err);
+            });
+
+            readStream.on('end', () => {
+              currentChunk++;
+              appendNext();
+            });
+
+            readStream.pipe(destStream, { end: false });
+          }
+
+          destStream.on('finish', () => {
+            resolve();
+          });
+
+          destStream.on('error', (err) => {
+            reject(err);
+          });
+
+          appendNext();
+        });
+      };
+
+      await mergeChunks(dir, upload.totalChunks, writeStream);
+
+      // Validate storage limit again
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
+        return next(new AppError('User not found', 404));
+      }
+
+      if (user.storageUsed + upload.fileSize > user.storageLimit) {
+        if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
+        return next(new AppError('Storage limit exceeded. Cannot complete upload.', 400));
+      }
+
+      // Remove chunks directory & document
+      fs.rmSync(dir, { recursive: true, force: true });
+      await ChunkUpload.deleteOne({ _id: upload._id });
+
+      // Create File in DB
+      let fileDoc = await File.create({
+        owner: req.user._id,
+        folderId: upload.folderId,
+        fileName: uniqueFileName,
+        originalName: upload.fileName,
+        size: upload.fileSize,
+        mimeType: upload.mimeType,
+        extension: upload.extension,
+        storagePath: `/uploads/${uniqueFileName}`,
+        thumbnailUrl: `/uploads/${uniqueFileName}`,
+      });
+
+      // Populate fileDoc owner name
+      fileDoc = await File.findById(fileDoc._id).populate('owner', 'name');
+
+      // Update User storageUsed
+      user.storageUsed += upload.fileSize;
+      await user.save();
+
+      // Invalidate caches
+      await cacheService.invalidateRecentFiles(req.user._id);
+      await cacheService.invalidateStorageUsage(req.user._id);
+
+      // Dispatch background processing job
+      await addFileProcessingJob('process-file', {
+        fileId: fileDoc._id,
+        userId: req.user._id,
+      });
+
+      res.status(201).json({
+        status: 'success',
+        message: 'File upload completed and assembled successfully',
+        data: { file: fileDoc },
       });
     } catch (err) {
       next(err);
