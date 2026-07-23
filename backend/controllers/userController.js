@@ -105,6 +105,52 @@ class UserController {
       next(err);
     }
   }
+  async getSessions(req, res, next) {
+    try {
+      const currentToken = req.cookies?.refreshToken || req.headers.authorization?.split(' ')[1] || ''; // Since the frontend only sends accessToken in auth header, we check cookie
+      
+      const mappedSessions = (req.user.sessions || []).map(s => ({
+        id: s._id,
+        device: s.device || 'Unknown Device',
+        location: s.ipAddress || 'Unknown IP',
+        isCurrent: s.token === req.cookies?.refreshToken,
+        lastActive: s.lastActive
+      })).sort((a, b) => b.lastActive - a.lastActive); // sort most recent first
+
+      res.status(200).json({
+        status: 'success',
+        data: mappedSessions,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async revokeSession(req, res, next) {
+    try {
+      const sessionId = req.params.id;
+      
+      const user = req.user;
+      user.sessions = user.sessions.filter(s => s._id.toString() !== sessionId);
+      await user.save();
+
+      const mappedSessions = (user.sessions || []).map(s => ({
+        id: s._id,
+        device: s.device || 'Unknown Device',
+        location: s.ipAddress || 'Unknown IP',
+        isCurrent: s.token === req.cookies?.refreshToken,
+        lastActive: s.lastActive
+      })).sort((a, b) => b.lastActive - a.lastActive);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Session revoked successfully',
+        data: mappedSessions,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new UserController();

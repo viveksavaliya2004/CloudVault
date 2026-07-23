@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { BACKEND_URL } from '../services/api';
 
 if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -195,7 +196,7 @@ const PdfThumbnail = ({ pdfUrl, fallback }) => {
         let loadingTask;
         if (arrayBuffer) {
           loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        } else if (pdfUrl && !pdfUrl.startsWith('/api/')) {
+        } else if (pdfUrl && !pdfUrl.startsWith('/api/') && !pdfUrl.includes('/api/')) {
           loadingTask = pdfjsLib.getDocument(pdfUrl);
         } else {
           loadingTask = pdfjsLib.getDocument(SAMPLE_PDF_DATA_URL);
@@ -310,7 +311,7 @@ export const FileCard = ({ file, onContextMenu, onDoubleClick, badge }) => {
   const getPdfUrl = () => {
     if (file.url) return file.url;
     if (file.storagePath) return file.storagePath;
-    if (file._id || file.id) return `/api/files/${file._id || file.id}/view`;
+    if (file._id || file.id) return `${BACKEND_URL}/api/files/${file._id || file.id}/view`;
     return null;
   };
 

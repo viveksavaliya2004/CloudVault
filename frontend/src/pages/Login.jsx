@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Key, Mail, User, ArrowRight } from 'lucide-react';
 import { useLoginMutation, useRegisterMutation, useLogoutMutation, useUserQuery } from '../hooks/useAuth';
@@ -162,7 +162,17 @@ export const Login = () => {
           </motion.div>
 
           <motion.div layout="position" className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Password</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Password</label>
+              {!isRegister && (
+                <Link 
+                  to="/forgot-password" 
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <div 
               className={`relative rounded-xl border transition-all duration-200 ${
                 activeField === 'password' 

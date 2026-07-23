@@ -131,3 +131,31 @@ export const useRevokeSessionMutation = () => {
     }
   });
 };
+
+export const useForgotPasswordMutation = () => {
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (email) => apiService.auth.forgotPassword(email),
+    onSuccess: (res) => {
+      addToast(res.data?.message || 'OTP code sent to your email!', 'success');
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.message || 'Failed to send OTP. Please check email address.', 'error');
+    }
+  });
+};
+
+export const useResetPasswordMutation = () => {
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (data) => apiService.auth.resetPassword(data),
+    onSuccess: (res) => {
+      addToast(res.data?.message || 'Password reset successfully! Please log in.', 'success');
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.message || 'Failed to reset password. Please verify your OTP code.', 'error');
+    }
+  });
+};

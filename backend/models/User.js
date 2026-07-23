@@ -50,10 +50,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    refreshToken: {
-      type: String,
-      default: null,
-    },
+    sessions: [{
+      token: { type: String, required: true },
+      ipAddress: { type: String },
+      device: { type: String },
+      createdAt: { type: Date, default: Date.now },
+      lastActive: { type: Date, default: Date.now }
+    }],
   },
   {
     timestamps: true, // Generates createdAt and updatedAt fields automatically

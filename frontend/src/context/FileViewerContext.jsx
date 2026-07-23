@@ -5,7 +5,7 @@ import {
   Music, File, HelpCircle, FileCode, Check, Copy,
   Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
-import api, { USE_MOCK } from '../services/api';
+import api, { USE_MOCK, BACKEND_URL } from '../services/api';
 import { formatBytes } from '../services/mockData';
 
 const FileViewerContext = createContext();
@@ -102,7 +102,7 @@ export const FileViewerProvider = ({ children }) => {
 
     const token = localStorage.getItem('accessToken');
     const a = document.createElement('a');
-    a.href = `/api/files/${viewedFile.id}/download?token=${token}`;
+    a.href = `${BACKEND_URL}/api/files/${viewedFile.id}/download?token=${token}`;
     a.download = viewedFile.name;
     document.body.appendChild(a);
     a.click();
@@ -135,7 +135,7 @@ export const FileViewerProvider = ({ children }) => {
       return '';
     }
     const token = localStorage.getItem('accessToken');
-    return `/api/files/${viewedFile.id}/view?token=${token}`;
+    return `${BACKEND_URL}/api/files/${viewedFile.id}/view?token=${token}`;
   };
 
   const getFileIcon = (type) => {

@@ -2,7 +2,8 @@ import axios from 'axios';
 import * as mockDB from './mockData';
 
 // API Base URL (Vite proxy redirects relative calls from /api to http://localhost:5000/api)
-const API_BASE_URL = '/api';
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '' : 'https://cloudvault-l5p3.onrender.com');
+const API_BASE_URL = `${BACKEND_URL}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -98,7 +99,11 @@ const getFileType = (ext, mime) => {
 
 const cleanUrl = (url) => {
   if (!url) return '';
-  return String(url).replace(/\\/g, '/');
+  let cleaned = String(url).replace(/\\/g, '/');
+  if (cleaned.startsWith('/uploads') || cleaned.startsWith('/api')) {
+    cleaned = `${BACKEND_URL}${cleaned}`;
+  }
+  return cleaned;
 };
 
 const mapFile = (f) => {
@@ -158,7 +163,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401 && hasToken && !isOnLoginPage && !originalRequest._retry && !isAuthRequest && !isPublicShareRequest) {
       originalRequest._retry = true;
       try {
-        const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true });
         const { accessToken } = response.data.data;
         localStorage.setItem('accessToken', accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -236,6 +241,20 @@ export const apiService = {
         response.data.user = response.data.data.user;
       }
       return response;
+    },
+    forgotPassword: async (email) => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { data: { success: true, message: 'OTP sent to email' } };
+      }
+      return api.post('/auth/forgot-password', { email });
+    },
+    resetPassword: async (data) => {
+      if (USE_MOCK) {
+        await delay(500);
+        return { data: { success: true, message: 'Password reset successfully' } };
+      }
+      return api.post('/auth/reset-password', data);
     }
   },
 
@@ -297,16 +316,22 @@ export const apiService = {
         await delay(200);
         return { data: mockDB.getMockSessions() };
       }
-      await delay(200);
-      return { data: mockDB.getMockSessions() };
+      const response = await api.get('/users/profile/sessions');
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
     },
     revokeSession: async (id) => {
       if (USE_MOCK) {
         await delay(300);
         return { data: mockDB.deleteMockSession(id) };
       }
-      await delay(300);
-      return { data: mockDB.deleteMockSession(id) };
+      const response = await api.delete(`/users/profile/sessions/${id}`);
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
     }
   },
 

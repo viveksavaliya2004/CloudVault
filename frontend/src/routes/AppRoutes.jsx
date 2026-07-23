@@ -8,7 +8,9 @@ import { RecycleBin } from '../pages/RecycleBin';
 import { SharedFiles } from '../pages/SharedFiles';
 import { Profile } from '../pages/Profile';
 import { Settings } from '../pages/Settings';
+import UpgradePlan from '../pages/UpgradePlan';
 import { Login } from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
 import { PublicShare } from '../pages/PublicShare';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { AdminPanel } from '../pages/AdminPanel';
@@ -43,6 +45,7 @@ export const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Admin routes (isolated layout and login) */}
       <Route path="/admin/login" element={<AdminLogin />} />
@@ -66,6 +69,7 @@ export const AppRoutes = () => {
         <Route path="shared" element={<SharedFiles />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="upgrade" element={<UpgradePlan />} />
       </Route>
 
       <Route path="shared/public/:shareId" element={<PublicShare />} />

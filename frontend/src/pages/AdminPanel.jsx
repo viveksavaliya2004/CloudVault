@@ -101,13 +101,6 @@ export const AdminPanel = () => {
 
   useEffect(() => {
     updateAnalytics(startDate, endDate);
-
-    // Set up polling interval to update the analytics in live time (every 5 seconds)
-    const interval = setInterval(() => {
-      updateAnalytics(startDate, endDate);
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, [startDate, endDate, updateAnalytics]);
 
   const fetchAdminData = useCallback(async () => {
@@ -176,9 +169,8 @@ export const AdminPanel = () => {
       whileHover={onClick ? { y: -4, scale: 1.01 } : {}}
       whileTap={onClick ? { scale: 0.98 } : {}}
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 transition-all duration-300 ${
-        onClick ? 'cursor-pointer hover:border-indigo-400/50 dark:hover:border-indigo-800/40 select-none' : ''
-      }`}
+      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-indigo-400/50 dark:hover:border-indigo-800/40 select-none' : ''
+        }`}
     >
       <div className="flex items-start justify-between">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
@@ -285,8 +277,8 @@ export const AdminPanel = () => {
             animate={{ width: `${storagePercent}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className={`h-full rounded-full ${storagePercent > 90 ? 'bg-gradient-to-r from-rose-500 to-rose-600' :
-                storagePercent > 70 ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
-                  'bg-gradient-to-r from-indigo-500 to-violet-500'
+              storagePercent > 70 ? 'bg-gradient-to-r from-amber-500 to-orange-500' :
+                'bg-gradient-to-r from-indigo-500 to-violet-500'
               }`}
           />
         </div>
@@ -299,8 +291,8 @@ export const AdminPanel = () => {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${activeTab === tab.key
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -333,9 +325,9 @@ export const AdminPanel = () => {
                   <div key={u._id || i} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${i === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-500' :
-                          i === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-500' :
-                            i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500' :
-                              'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        i === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-500' :
+                          i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500' :
+                            'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                         }`}>
                         {i + 1}
                       </span>
@@ -430,8 +422,8 @@ export const AdminPanel = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white ${u.role === 'admin'
-                              ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
-                              : 'bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700'
+                            ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
+                            : 'bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700'
                             }`}>
                             {u.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
@@ -456,8 +448,8 @@ export const AdminPanel = () => {
                           <button
                             onClick={() => handleToggleBlock(u._id)}
                             className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${u.isBlocked
-                                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/15 hover:bg-emerald-200 dark:hover:bg-emerald-500/25'
-                                : 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 dark:hover:bg-rose-500/25'
+                              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/15 hover:bg-emerald-200 dark:hover:bg-emerald-500/25'
+                              : 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 dark:hover:bg-rose-500/25'
                               }`}
                           >
                             {u.isBlocked ? 'Unblock' : 'Block'}
@@ -486,11 +478,10 @@ export const AdminPanel = () => {
               <button
                 key={sub.key}
                 onClick={() => setSubTab(sub.key)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer w-full text-left ${
-                  subTab === sub.key
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer w-full text-left ${subTab === sub.key
                     ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-l-2 border-indigo-500'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
+                  }`}
               >
                 <sub.icon className="w-4 h-4 flex-shrink-0" />
                 <span>{sub.label}</span>
@@ -927,8 +918,8 @@ export const AdminPanel = () => {
                 <div key={log.id} className="flex items-start justify-between gap-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/60 dark:hover:bg-slate-800/80 transition-colors">
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${log.action === 'file_upload' ? 'bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400' :
-                        log.action === 'user_register' ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' :
-                          'bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                      log.action === 'user_register' ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' :
+                        'bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400'
                       }`}>
                       {log.action === 'file_upload' ? <Upload className="w-3.5 h-3.5" /> :
                         log.action === 'user_register' ? <UserCheck className="w-3.5 h-3.5" /> :

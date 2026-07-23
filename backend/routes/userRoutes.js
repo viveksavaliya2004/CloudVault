@@ -13,4 +13,7 @@ router.patch('/profile', userController.updateProfile);
 router.post('/profile/avatar', upload.single('avatar'), userController.uploadAvatar);
 router.patch('/profile/password', userController.changePassword);
 
+router.get('/profile/sessions', userController.getSessions);
+router.delete('/profile/sessions/:id', userController.revokeSession);
+
 module.exports = router;

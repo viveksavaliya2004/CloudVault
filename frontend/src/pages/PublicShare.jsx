@@ -6,7 +6,7 @@ import {
   Image as ImageIcon, Video, Music, File,
   ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2
 } from 'lucide-react';
-import { apiService, USE_MOCK } from '../services/api';
+import { apiService, USE_MOCK, BACKEND_URL } from '../services/api';
 import { formatBytes } from '../services/mockData';
 import { Loader } from '../components/UI';
 
@@ -41,7 +41,7 @@ export const PublicShare = () => {
     ['.txt', '.js', '.json', '.html', '.css', '.md'].includes(fileInfo?.extension);
   const hasPreview = isImage || isPdf || isVideo || isAudio || isText;
 
-  const previewUrl = `/api/files/shared/public/${shareId}/download?password=${encodeURIComponent(password)}&inline=true`;
+  const previewUrl = `${BACKEND_URL}/api/files/shared/public/${shareId}/download?password=${encodeURIComponent(password)}&inline=true`;
 
   useEffect(() => {
     if (isText && (passwordVerified || !isProtected)) {
@@ -109,7 +109,7 @@ export const PublicShare = () => {
   };
 
   const handleDownload = () => {
-    const url = `/api/files/shared/public/${shareId}/download?password=${encodeURIComponent(password)}`;
+    const url = `${BACKEND_URL}/api/files/shared/public/${shareId}/download?password=${encodeURIComponent(password)}`;
 
     if (USE_MOCK) {
       const blob = new Blob(['CloudVault Mock Shared File Data'], { type: 'text/plain' });
