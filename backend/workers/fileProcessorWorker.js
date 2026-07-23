@@ -32,8 +32,34 @@ const processFileJob = async (job) => {
   await file.save({ validateBeforeSave: false });
 
   // STEP 2: Thumbnail Generation
-  console.log(`📷 [Pipeline Step 2/5] Thumbnail is handled by ImageKit (URL: "${file.thumbnailUrl}").`);
-  file.thumbnailPath = file.thumbnailUrl || `/uploads/thumbnails/thumb_${file.fileName}`;
+  console.log(`📷 [Pipeline Step 2/5] Thumbnail generation...`);
+  if (file.mimeType.startsWith('video/') && file.storagePath.startsWith('/uploads/')) {
+    const { exec } = require('child_process');
+    const relativePath = file.storagePath.replace(/^\/uploads\//, '');
+    const videoAbsolutePath = path.join(__dirname, '../uploads', relativePath);
+
+    const thumbnailsDir = path.join(__dirname, '../uploads/thumbnails');
+    if (!fs.existsSync(thumbnailsDir)) {
+      fs.mkdirSync(thumbnailsDir, { recursive: true });
+    }
+    const thumbFilename = `thumb_${file._id}.jpg`;
+    const thumbAbsolutePath = path.join(thumbnailsDir, thumbFilename);
+
+    await new Promise((resolve) => {
+      exec(`ffmpeg -y -i "${videoAbsolutePath}" -ss 00:00:01 -vframes 1 "${thumbAbsolutePath}"`, (err) => {
+        if (!err && fs.existsSync(thumbAbsolutePath)) {
+          file.thumbnailUrl = `/uploads/thumbnails/${thumbFilename}`;
+          file.thumbnailPath = `/uploads/thumbnails/${thumbFilename}`;
+          console.log(`📷 [Thumbnail] Extracted thumbnail frame from video using FFmpeg.`);
+        } else {
+          console.log(`📷 [Thumbnail] FFmpeg not available or failed; retaining client-generated thumbnail.`);
+        }
+        resolve();
+      });
+    });
+  } else {
+    file.thumbnailPath = file.thumbnailUrl || `/uploads/thumbnails/thumb_${file.fileName}`;
+  }
   await file.save({ validateBeforeSave: false });
 
   // STEP 3: Compression Optimization

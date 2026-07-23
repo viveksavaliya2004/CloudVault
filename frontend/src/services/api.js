@@ -15,6 +15,61 @@ const api = axios.create({
 // Flag to use mock database in frontend instead of making real network requests
 const USE_MOCK = false;
 
+const generateVideoThumbnail = (file) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith('video/')) {
+      return resolve(null);
+    }
+
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    video.autoplay = false;
+    video.muted = true;
+    video.playsInline = true;
+
+    let objectUrl;
+    try {
+      objectUrl = URL.createObjectURL(file);
+      video.src = objectUrl;
+    } catch (e) {
+      console.error('Failed to create object URL for video', e);
+      return resolve(null);
+    }
+
+    const cleanup = () => {
+      try {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      } catch (e) {}
+    };
+
+    video.addEventListener('loadeddata', () => {
+      video.currentTime = Math.min(1, video.duration / 2);
+    });
+
+    video.addEventListener('seeked', () => {
+      try {
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(dataUrl);
+      } catch (err) {
+        console.error('Failed to extract video thumbnail frame', err);
+        resolve(null);
+      } finally {
+        cleanup();
+      }
+    });
+
+    video.addEventListener('error', () => {
+      cleanup();
+      resolve(null);
+    });
+  });
+};
+
 // Helper to simulate network latency
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -375,6 +430,19 @@ export const apiService = {
         return { data: newFile };
       }
 
+      // Generate video thumbnail (base64 string) if file is a video
+      let videoThumbnail = null;
+      if (file.type && file.type.startsWith('video/')) {
+        try {
+          if (onProgress) {
+            onProgress(0, { statusText: 'Extracting video thumbnail...' });
+          }
+          videoThumbnail = await generateVideoThumbnail(file);
+        } catch (e) {
+          console.warn('Failed to generate video thumbnail client side:', e);
+        }
+      }
+
       const CHUNK_THRESHOLD = 5 * 1024 * 1024; // 5MB
       if (file.size > CHUNK_THRESHOLD) {
         const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
@@ -484,7 +552,10 @@ export const apiService = {
           onProgress(99, { statusText: 'Assembling file...' });
         }
 
-        const completeRes = await api.post('/files/upload/chunk/complete', { uploadId }, { signal });
+        const completeRes = await api.post('/files/upload/chunk/complete', { 
+          uploadId,
+          thumbnail: videoThumbnail
+        }, { signal });
 
         if (onProgress) {
           onProgress(100, { statusText: 'Complete' });
@@ -500,6 +571,7 @@ export const apiService = {
       const formData = new FormData();
       formData.append('file', file);
       if (parentFolderId) formData.append('folderId', parentFolderId);
+      if (videoThumbnail) formData.append('thumbnail', videoThumbnail);
 
       const response = await api.post('/files/upload/single', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

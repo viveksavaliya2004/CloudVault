@@ -11,6 +11,29 @@ const AppError = require('../utils/AppError');
 const cacheService = require('../services/cacheService');
 const { addFileProcessingJob } = require('../config/queue');
 
+const saveBase64Thumbnail = async (fileDoc, base64Data) => {
+  try {
+    const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Image, 'base64');
+    
+    const thumbnailsDir = path.join(__dirname, '../uploads/thumbnails');
+    if (!fs.existsSync(thumbnailsDir)) {
+      fs.mkdirSync(thumbnailsDir, { recursive: true });
+    }
+    
+    const filename = `thumb_${fileDoc._id}.jpg`;
+    const absolutePath = path.join(thumbnailsDir, filename);
+    fs.writeFileSync(absolutePath, buffer);
+    
+    fileDoc.thumbnailUrl = `/uploads/thumbnails/${filename}`;
+    fileDoc.thumbnailPath = `/uploads/thumbnails/${filename}`;
+    await fileDoc.save({ validateBeforeSave: false });
+    console.log(`📷 [Thumbnail] Saved client-generated thumbnail for file ${fileDoc._id}`);
+  } catch (err) {
+    console.error('Failed to save client-generated thumbnail:', err.message);
+  }
+};
+
 class FileController {
   async uploadSingleFile(req, res, next) {
     try {
@@ -24,6 +47,10 @@ class FileController {
         req.body.folderId
       );
       file = await File.findById(file._id).populate('owner', 'name');
+
+      if (req.body.thumbnail) {
+        await saveBase64Thumbnail(file, req.body.thumbnail);
+      }
 
       await cacheService.invalidateRecentFiles(req.user._id);
       await cacheService.invalidateStorageUsage(req.user._id);
@@ -1000,6 +1027,10 @@ class FileController {
 
       // Populate fileDoc owner name
       fileDoc = await File.findById(fileDoc._id).populate('owner', 'name');
+
+      if (req.body.thumbnail) {
+        await saveBase64Thumbnail(fileDoc, req.body.thumbnail);
+      }
 
       // Update User storageUsed
       user.storageUsed += upload.fileSize;
