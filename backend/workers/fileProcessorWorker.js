@@ -4,6 +4,7 @@ const path = require('path');
 const File = require('../models/File');
 const Notification = require('../models/Notification');
 const cacheService = require('../services/cacheService');
+const compressionService = require('../services/compressionService');
 const { redisConnection, memoryQueue } = require('../config/queue');
 
 let poppler = null;
@@ -32,12 +33,12 @@ const processFileJob = async (job) => {
 
   // STEP 2: Thumbnail Generation
   console.log(`📷 [Pipeline Step 2/5] Thumbnail is handled by ImageKit (URL: "${file.thumbnailUrl}").`);
+  file.thumbnailPath = file.thumbnailUrl || `/uploads/thumbnails/thumb_${file.fileName}`;
   await file.save({ validateBeforeSave: false });
 
   // STEP 3: Compression Optimization
   console.log(`📦 [Pipeline Step 3/5] Applying File Compression & Metadata Optimization...`);
-  file.isCompressed = true;
-  await file.save({ validateBeforeSave: false });
+  await compressionService.compressFile(file);
 
   // STEP 4: Virus Scan Check
   console.log(`🛡️ [Pipeline Step 4/5] Executing Virus & Malware Scan on "${file.fileName}"...`);
