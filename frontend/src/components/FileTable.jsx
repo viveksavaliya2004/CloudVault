@@ -56,7 +56,18 @@ export const FileTable = ({
     if (type === 'folder') {
       return <Folder className="w-4 h-4" style={{ color: item.color || '#3B82F6' }} />;
     }
-    
+
+    const ext = (item.name || '').split('.').pop().toLowerCase();
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext) || item.type === 'zip') {
+      return <FileArchive className="w-4 h-4 text-amber-500" />;
+    }
+    if (['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'm4v'].includes(ext) || item.type === 'video') {
+      return <Video className="w-4 h-4 text-purple-500" />;
+    }
+    if (['doc', 'docx'].includes(ext)) {
+      return <FileText className="w-4 h-4 text-blue-600" />;
+    }
+
     switch (item.type) {
       case 'image':
         return <ImageIcon className="w-4 h-4 text-emerald-500" />;
