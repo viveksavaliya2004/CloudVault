@@ -72,6 +72,9 @@ export const AdminPanel = () => {
   const [logs, setLogs] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [allUsersLoading, setAllUsersLoading] = useState(false);
+  const [userPage, setUserPage] = useState(1);
+  const [userSearch, setUserSearch] = useState('');
+  const USERS_PER_PAGE = 5;
   const [activeTab, setActiveTab] = useState('overview');
   const [subTab, setSubTab] = useState('usage');
   const [startDate, setStartDate] = useState('2026-07-01');
@@ -387,83 +390,143 @@ export const AdminPanel = () => {
       )}
 
       {/* ── Tab: Users ── */}
-      {activeTab === 'users' && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300"
-        >
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">All Users</h3>
-            <span className="text-xs font-semibold bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-full">
-              {allUsers.length} total
-            </span>
-          </div>
+      {activeTab === 'users' && (() => {
+        const filteredUsers = allUsers.filter(u =>
+          (u.name || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+          (u.email || '').toLowerCase().includes(userSearch.toLowerCase())
+        );
+        const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1;
+        const startIndex = (userPage - 1) * USERS_PER_PAGE;
+        const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
 
-          {allUsersLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-indigo-200 dark:border-indigo-800 border-t-indigo-500 rounded-full animate-spin" />
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-colors duration-300"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">All Users</h3>
+                <span className="text-xs font-semibold bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-full">
+                  {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
+                </span>
+              </div>
+
+              {/* User Search Input */}
+              <input
+                type="text"
+                placeholder="Search user by name or email..."
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  setUserPage(1);
+                }}
+                className="text-xs border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl px-3.5 py-1.5 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              />
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    <th className="px-6 py-3">User</th>
-                    <th className="px-6 py-3">Email</th>
-                    <th className="px-6 py-3">Storage</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {allUsers.map(u => (
-                    <tr key={u._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white ${u.role === 'admin'
-                            ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
-                            : 'bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700'
-                            }`}>
-                            {u.name?.charAt(0)?.toUpperCase() || '?'}
-                          </div>
-                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{u.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{u.email}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{formatBytes(u.storageUsed || 0)}</td>
-                      <td className="px-6 py-4">
-                        {u.role === 'admin' ? (
-                          <span className="text-xs font-semibold bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-full">Admin</span>
-                        ) : u.isBlocked ? (
-                          <span className="text-xs font-semibold bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full">Blocked</span>
-                        ) : (
-                          <span className="text-xs font-semibold bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full">Active</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {u.role === 'admin' ? (
-                          <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleBlock(u._id)}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${u.isBlocked
-                              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/15 hover:bg-emerald-200 dark:hover:bg-emerald-500/25'
-                              : 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 dark:hover:bg-rose-500/25'
-                              }`}
-                          >
-                            {u.isBlocked ? 'Unblock' : 'Block'}
-                          </button>
-                        )}
-                      </td>
+
+            {allUsersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 border-2 border-indigo-200 dark:border-indigo-800 border-t-indigo-500 rounded-full animate-spin" />
+              </div>
+            ) : paginatedUsers.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-400">No matching users found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="px-6 py-3">User</th>
+                      <th className="px-6 py-3">Email</th>
+                      <th className="px-6 py-3">Storage</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </motion.div>
-      )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {paginatedUsers.map(u => (
+                      <tr key={u._id || u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white ${u.role === 'admin'
+                              ? 'bg-gradient-to-br from-indigo-500 to-violet-600'
+                              : 'bg-gradient-to-br from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700'
+                              }`}>
+                              {u.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{u.email}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{formatBytes(u.storageUsed || 0)}</td>
+                        <td className="px-6 py-4">
+                          {u.role === 'admin' ? (
+                            <span className="text-xs font-semibold bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-full">Admin</span>
+                          ) : u.isBlocked ? (
+                            <span className="text-xs font-semibold bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full">Blocked</span>
+                          ) : (
+                            <span className="text-xs font-semibold bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full">Active</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {u.role === 'admin' ? (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleBlock(u._id || u.id)}
+                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${u.isBlocked
+                                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/15 hover:bg-emerald-200 dark:hover:bg-emerald-500/25'
+                                : 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 dark:hover:bg-rose-500/25'
+                                }`}
+                            >
+                              {u.isBlocked ? 'Unblock' : 'Block'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Controls Footer */}
+            {totalPages > 1 && (
+              <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <div>
+                  Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{startIndex + 1}</span> to <span className="font-semibold text-slate-700 dark:text-slate-200">{Math.min(startIndex + USERS_PER_PAGE, filteredUsers.length)}</span> of <span className="font-semibold text-slate-700 dark:text-slate-200">{filteredUsers.length}</span> users
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setUserPage(prev => Math.max(prev - 1, 1))}
+                    disabled={userPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold cursor-pointer"
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1 px-2 font-medium">
+                    <span>Page</span>
+                    <span className="font-bold text-slate-800 dark:text-white">{userPage}</span>
+                    <span>of</span>
+                    <span className="font-bold text-slate-800 dark:text-white">{totalPages}</span>
+                  </div>
+
+                  <button
+                    onClick={() => setUserPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={userPage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        );
+      })()}
 
       {/* ── Tab: Analytics ── */}
       {activeTab === 'analytics' && (

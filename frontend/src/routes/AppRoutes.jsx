@@ -41,6 +41,29 @@ const ProtectedRoute = ({ children }) => {
   return <>{children}</>;
 };
 
+const AdminProtectedRoute = ({ children }) => {
+  const { data: user, isLoading } = useUserQuery();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slateBg-light dark:bg-slateBg-darker">
+        <Loader size="lg" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const AppRoutes = () => {
   return (
     <Routes>
@@ -49,7 +72,14 @@ export const AppRoutes = () => {
 
       {/* Admin routes (isolated layout and login) */}
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route
+        path="/admin"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }
+      >
         <Route index element={<AdminPanel />} />
       </Route>
 
