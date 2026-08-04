@@ -77,8 +77,13 @@ export const AdminPanel = () => {
   const USERS_PER_PAGE = 5;
   const [activeTab, setActiveTab] = useState('overview');
   const [subTab, setSubTab] = useState('usage');
-  const [startDate, setStartDate] = useState('2026-07-01');
-  const [endDate, setEndDate] = useState('2026-07-23');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [sortBy, setSortBy] = useState('requests');
   const [analyticsData, setAnalyticsData] = useState({
     totalRequests: 289,
@@ -613,8 +618,14 @@ export const AdminPanel = () => {
                     </div>
 
                     <DonutChart
-                      data={[{ value: analyticsData.totalRequests, color: '#f59e0b' }]}
-                      centerText={`${analyticsData.totalRequests}.0`}
+                      data={analyticsData.urls && analyticsData.urls.filter(u => u.url !== 'Default').length > 0
+                        ? analyticsData.urls.filter(u => u.url !== 'Default').slice(0, 5).map((u, i) => ({
+                            value: u.requests,
+                            color: ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'][i % 5]
+                          }))
+                        : [{ value: analyticsData.totalRequests || 1, color: '#f59e0b' }]
+                      }
+                      centerText={`${analyticsData.totalRequests || 0}.0`}
                       subText="requests"
                     />
 
@@ -634,17 +645,21 @@ export const AdminPanel = () => {
                               if (sortBy === 'requests') return b.requests - a.requests;
                               return parseFloat(b.bandwidth) - parseFloat(a.bandwidth);
                             })
-                            .map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 transition-colors">
-                                <td className="px-4 py-2.5 font-semibold text-slate-750 dark:text-slate-300 flex items-center gap-2">
-                                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 flex-shrink-0" />
-                                  <span className="truncate max-w-[140px]" title={item.url}>{item.url}</span>
-                                </td>
-                                <td className="px-4 py-2.5 text-right text-slate-500 dark:text-slate-400 font-medium">{item.requests}.0</td>
-                                <td className="px-4 py-2.5 text-right text-slate-500 dark:text-slate-400 font-medium">{item.bandwidth}</td>
-                                <td className="px-4 py-2.5 text-right text-slate-700 dark:text-slate-350 font-bold">{item.percent}</td>
-                              </tr>
-                            ))}
+                            .map((item, idx) => {
+                              const colorsList = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#64748b'];
+                              const colorHex = item.url === 'Default' ? '#f59e0b' : colorsList[(idx - 1) % 5] || '#64748b';
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 transition-colors">
+                                  <td className="px-4 py-2.5 font-semibold text-slate-750 dark:text-slate-300 flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: colorHex }} />
+                                    <span className="truncate max-w-[160px]" title={item.url}>{item.url}</span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right text-slate-500 dark:text-slate-400 font-medium">{item.requests}.0</td>
+                                  <td className="px-4 py-2.5 text-right text-slate-500 dark:text-slate-400 font-medium">{item.bandwidth}</td>
+                                  <td className="px-4 py-2.5 text-right text-slate-700 dark:text-slate-350 font-bold">{item.percent}</td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
