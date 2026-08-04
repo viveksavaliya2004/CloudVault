@@ -607,14 +607,31 @@ export const AdminPanel = () => {
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-white">URL-wise distribution</h3>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Requests by URL identifier</p>
                       </div>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="text-[11px] font-bold border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 bg-slate-50 dark:bg-slate-850 text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
-                      >
-                        <option value="requests">Sort by requests</option>
-                        <option value="bandwidth">Sort by bandwidth</option>
-                      </select>
+                      {/* Custom Modern Pill Toggle */}
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[11px] font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setSortBy('requests')}
+                          className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer ${
+                            sortBy === 'requests'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Requests
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSortBy('bandwidth')}
+                          className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer ${
+                            sortBy === 'bandwidth'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Bandwidth
+                        </button>
+                      </div>
                     </div>
 
                     <DonutChart
