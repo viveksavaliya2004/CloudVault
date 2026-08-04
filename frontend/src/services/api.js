@@ -734,38 +734,18 @@ export const apiService = {
         return { data: { success: true } };
       }
 
-      let targetEndpoint = `/files/${id}/download`;
-      if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('/uploads'))) {
-        targetEndpoint = cleanUrl(id);
-      }
+      const token = localStorage.getItem('accessToken');
+      const downloadUrl = (typeof id === 'string' && (id.startsWith('http') || id.startsWith('/uploads')))
+        ? cleanUrl(id)
+        : cleanUrl(`/api/files/${id}/download?token=${token}`);
 
-      try {
-        const response = await api.get(targetEndpoint, { responseType: 'blob' });
-        const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = name || 'download';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        return { data: { success: true } };
-      } catch (err) {
-        console.warn('Axios blob download encountered error, using direct link download:', err);
-        const token = localStorage.getItem('accessToken');
-        const fallbackUrl = (typeof id === 'string' && (id.startsWith('http') || id.startsWith('/uploads')))
-          ? cleanUrl(id)
-          : cleanUrl(`/api/files/${id}/download?token=${token}`);
-        const a = document.createElement('a');
-        a.href = fallbackUrl;
-        a.target = '_blank';
-        a.download = name || 'download';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        return { data: { success: true } };
-      }
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = name || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return { data: { success: true } };
     }
   },
 
