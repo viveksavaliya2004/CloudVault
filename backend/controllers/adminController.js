@@ -354,8 +354,12 @@ class AdminController {
 
       const { startDate, endDate } = req.query;
 
-      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const end = endDate ? new Date(endDate) : new Date();
+      let start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      if (isNaN(start.getTime())) start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+
+      let end = endDate ? new Date(endDate) : new Date();
+      if (isNaN(end.getTime())) end = new Date();
       end.setHours(23, 59, 59, 999);
 
       const matchQuery = {
