@@ -676,6 +676,21 @@ class FileController {
 
       if (sharedWith) {
         await share.populate('sharedWith', 'name email');
+
+        // Create a real notification for the recipient
+        try {
+          const Notification = require('../models/Notification');
+          const senderName = req.user.name || 'A user';
+          await Notification.create({
+            owner: targetUser._id,
+            fileId: file._id,
+            title: 'File Shared With You',
+            message: `${senderName} shared "${file.fileName || file.originalName}" with you.`,
+            type: 'info',
+          });
+        } catch (notifErr) {
+          console.error('Failed to create share notification:', notifErr.message);
+        }
       }
 
       res.status(200).json({

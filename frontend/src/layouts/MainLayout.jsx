@@ -25,9 +25,40 @@ export const MainLayout = () => {
   const searchParamVal = searchParams.get('search') || '';
   const [searchVal, setSearchVal] = useState(searchParamVal);
 
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = async () => {
+    try {
+      const { apiService } = await import('../services/api');
+      const res = await apiService.notifications.getNotifications();
+      if (res.data) {
+        const allNotifs = res.data.notifications || [];
+        const unreadNotifs = allNotifs.filter(n => !n.isRead);
+        setNotifications(unreadNotifs);
+        setUnreadCount(unreadNotifs.length);
+      }
+    } catch (err) {
+      console.warn('Failed to load notifications:', err.message);
+    }
+  };
+
   useEffect(() => {
-    setSearchVal(searchParamVal);
-  }, [searchParamVal]);
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      const { apiService } = await import('../services/api');
+      await apiService.notifications.markAllAsRead();
+      setUnreadCount(0);
+      setNotifications([]);
+    } catch (err) {}
+  };
 
   const storagePercentage = user ? (user.storageUsed / user.storageLimit) * 100 : 0;
 
@@ -116,10 +147,14 @@ export const MainLayout = () => {
             <div className="relative">
               <button
                 onClick={() => setNotificationOpen(!notificationOpen)}
-                className="p-2 text-slate-505 hover:text-slate-900 dark:hover:text-slate-100 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
               >
                 <Bell className="w-4.5 h-4.5" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-danger"></span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white shadow-xs leading-none border-2 border-white dark:border-slate-900 animate-pulse">
+                    +{unreadCount}
+                  </span>
+                )}
               </button>
 
               <AnimatePresence>
@@ -130,24 +165,42 @@ export const MainLayout = () => {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-40"
+                      className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-40 max-h-96 overflow-y-auto"
                     >
-                      <h4 className="font-semibold text-sm mb-3">Notifications</h4>
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <h4 className="font-semibold text-sm">Notifications</h4>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={handleMarkAllRead}
+                            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+
                       <div className="space-y-3">
-                        <div className="flex gap-2 text-xs items-start">
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-slate-850 dark:text-slate-200">Alex Rivera updated active profile settings.</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">10 mins ago</p>
+                        {notifications.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-slate-400">
+                            No new notifications
                           </div>
-                        </div>
-                        <div className="flex gap-2 text-xs items-start">
-                          <span className="h-1.5 w-1.5 rounded-full bg-success mt-1.5 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-slate-850 dark:text-slate-200">Storage warning: You have used 13% of storage capacity.</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">3 hours ago</p>
-                          </div>
-                        </div>
+                        ) : (
+                          notifications.map((item) => (
+                            <div key={item._id || item.id} className="flex gap-2.5 text-xs items-start border-b border-slate-50 dark:border-slate-800/50 pb-2 last:border-0">
+                              <span className={`h-2 w-2 rounded-full mt-1 flex-shrink-0 ${
+                                item.type === 'error' ? 'bg-red-500' : item.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                              }`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 dark:text-slate-200 text-xs leading-snug">
+                                  {item.message || item.title}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                  {item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </motion.div>
                   </>

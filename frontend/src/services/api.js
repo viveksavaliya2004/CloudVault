@@ -861,6 +861,34 @@ export const apiService = {
     }
   },
 
+  notifications: {
+    getNotifications: async () => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { data: { notifications: [], unreadCount: 0 } };
+      }
+      const response = await api.get('/notifications');
+      if (response.data && response.data.data) {
+        response.data = response.data.data;
+      }
+      return response;
+    },
+    markAsRead: async (id) => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { data: { success: true } };
+      }
+      return api.patch(`/notifications/${id}/read`);
+    },
+    markAllAsRead: async () => {
+      if (USE_MOCK) {
+        await delay(200);
+        return { data: { success: true } };
+      }
+      return api.patch('/notifications/read-all');
+    }
+  },
+
   shared: {
     getItems: async () => {
       if (USE_MOCK) {
