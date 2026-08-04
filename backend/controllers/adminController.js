@@ -26,10 +26,9 @@ class AdminController {
       const totalStorageUsed = storageResult[0]?.totalUsed || 0;
       const totalStorageLimit = storageResult[0]?.totalLimit || 0;
 
-      // 2.1 User verification status (All registered & logged-in users are verified)
-      await User.updateMany({ isVerified: { $ne: true } }, { $set: { isVerified: true } });
+      // 2.1 Real User verification status dynamically from database
       const verifiedUsersCount = await User.countDocuments({ isVerified: true });
-      const unverifiedUsersCount = Math.max(0, usersCount - verifiedUsersCount);
+      const unverifiedUsersCount = await User.countDocuments({ isVerified: false });
 
       // 2.2 Plan counts
       const freePlanCount = await User.countDocuments({ plan: 'free' });
@@ -152,15 +151,15 @@ class AdminController {
       const recentFiles = await File.find({ isDeleted: false })
         .populate('owner', 'name')
         .sort({ createdAt: -1 })
-        .limit(5);
+        .limit(20);
 
       const recentUsers = await User.find({})
         .sort({ createdAt: -1 })
-        .limit(5);
+        .limit(20);
 
       const recentBlockedUsers = await User.find({ isBlocked: true })
         .sort({ updatedAt: -1 })
-        .limit(5);
+        .limit(20);
 
       const logs = [];
 
@@ -204,7 +203,7 @@ class AdminController {
           blockedUsers,
           mostSharedFiles,
           mostDownloadedFiles,
-          logs: logs.slice(0, 10)
+          logs: logs.slice(0, 50)
         }
       });
     } catch (err) {
