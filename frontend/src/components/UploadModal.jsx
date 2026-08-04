@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UploadCloud, File, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
-import { useUploadFileMutation } from '../hooks/useFiles';
+import { X, UploadCloud, File, AlertCircle, RefreshCw, Trash2, Zap, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useUploadFileMutation, useDashboardStatsQuery } from '../hooks/useFiles';
 import { formatBytes } from '../services/mockData';
+
+const MAX_SINGLE_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB limit
+const DEFAULT_STORAGE_LIMIT = 5 * 1024 * 1024 * 1024; // 5 GB default capacity
 
 // SVG Animated Checkmark Component
 const AnimatedCheck = () => {
@@ -43,9 +47,13 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   const [dragActive, setDragActive] = useState(false);
   const [queue, setQueue] = useState([]);
   const uploadMutation = useUploadFileMutation();
+  const { data: statsData } = useDashboardStatsQuery();
   const fileInputRef = useRef(null);
   const queueRef = useRef([]);
   queueRef.current = queue;
+
+  const currentStorageUsed = statsData?.storageUsed ?? 0;
+  const storageLimit = statsData?.user?.storageLimit ?? DEFAULT_STORAGE_LIMIT;
 
   // Clear queue on close
   useEffect(() => {
@@ -107,13 +115,32 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
   };
 
   const addFilesToQueue = (files) => {
-    const newItems = files.map(file => ({
-      id: Math.random().toString(36).substring(2, 9),
-      file,
-      progress: 0,
-      status: 'pending',
-      abortController: new AbortController()
-    }));
+    let runningSizeAcc = currentStorageUsed + queueRef.current.reduce((acc, i) => i.status !== 'error' ? acc + i.file.size : acc, 0);
+
+    const newItems = files.map(file => {
+      let status = 'pending';
+      let errorMsg = '';
+
+      if (file.size > MAX_SINGLE_FILE_SIZE) {
+        status = 'error';
+        errorMsg = 'File size exceeds maximum limit of 1GB.';
+      } else if (runningSizeAcc + file.size > storageLimit) {
+        status = 'error';
+        errorMsg = `Drive storage limit of ${formatBytes(storageLimit)} exceeded. Please upgrade your plan.`;
+      } else {
+        runningSizeAcc += file.size;
+      }
+
+      return {
+        id: Math.random().toString(36).substring(2, 9),
+        file,
+        progress: 0,
+        status,
+        errorMsg,
+        statusText: '',
+        abortController: new AbortController()
+      };
+    });
 
     const isCurrentlyUploading = queueRef.current.some(item => item.status === 'uploading');
 
@@ -258,6 +285,13 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                               <span>{item.statusText}</span>
                             </p>
                           )}
+
+                          {item.status === 'error' && item.errorMsg && (
+                            <p className="text-[10px] text-red-500 dark:text-red-400 font-bold mb-1 flex items-center gap-1 leading-snug">
+                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                              <span>{item.errorMsg}</span>
+                            </p>
+                          )}
                           
                           <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                             <motion.div
@@ -296,9 +330,6 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
                               </button>
-                              <span title={item.errorMsg} className="flex items-center text-danger">
-                                <AlertCircle className="w-4.5 h-4.5" />
-                              </span>
                             </>
                           )}
                           {item.status !== 'success' && (
@@ -319,6 +350,38 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {queue.some(item => item.status === 'error' && item.errorMsg && (item.errorMsg.toLowerCase().includes('storage') || item.errorMsg.includes('5GB') || item.errorMsg.toLowerCase().includes('limit'))) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-primary/10 to-indigo-500/10 border border-amber-500/30 dark:border-amber-400/20 text-left"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div className="flex-grow">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <span>Drive Storage Limit Exceeded (5GB Capacity)</span>
+                      </h5>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 font-medium leading-relaxed">
+                        Your 5GB free storage capacity is full or exceeded by this file. Upgrade your plan to get up to 100GB (Pro) or 2TB (Business) storage.
+                      </p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <Link
+                          to="/upgrade"
+                          onClick={onClose}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/90 transition-all hover:scale-[1.02]"
+                        >
+                          <span>Upgrade Plan Now</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               )}
 
               {allCompleted && (

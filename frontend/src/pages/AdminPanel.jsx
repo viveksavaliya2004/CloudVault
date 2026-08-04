@@ -285,7 +285,7 @@ export const AdminPanel = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit transition-colors duration-300">
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-full sm:w-fit overflow-x-auto transition-colors duration-300">
         {tabs.map(tab => (
           <button
             key={tab.key}

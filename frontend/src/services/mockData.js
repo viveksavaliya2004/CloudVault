@@ -20,8 +20,8 @@ const defaultUser = {
   name: 'Alex Rivera',
   email: 'alex.rivera@cloudvault.com',
   avatar: '',
-  storageUsed: 68 * 1024 * 1024 * 1024, // 68 GB
-  storageLimit: 512 * 1024 * 1024 * 1024, // 512 GB
+  storageUsed: 1.2 * 1024 * 1024 * 1024, // 1.2 GB
+  storageLimit: 5 * 1024 * 1024 * 1024, // 5 GB
   role: 'Senior Project Lead'
 };
 

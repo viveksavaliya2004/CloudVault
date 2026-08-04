@@ -109,7 +109,7 @@ class FileService {
     }
 
     if (user.storageUsed + size > user.storageLimit) {
-      throw new AppError('Storage limit exceeded. Cannot upload file.', 400);
+      throw new AppError('Drive storage limit of 5GB exceeded. Please upgrade your plan.', 400);
     }
 
     // Generate unique display name to prevent duplicates in the same directory

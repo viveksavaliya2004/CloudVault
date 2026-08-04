@@ -188,7 +188,43 @@ class FileController {
       file.downloads = (file.downloads || 0) + 1;
       await file.save({ validateBeforeSave: false });
 
-      res.redirect(file.storagePath);
+      if (file.storagePath && file.storagePath.startsWith('/uploads/')) {
+        const relativePath = file.storagePath.replace(/^\/uploads\//, '');
+        const absolutePath = path.join(__dirname, '../uploads', relativePath);
+        if (fs.existsSync(absolutePath)) {
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName || file.originalName || 'download')}"`);
+          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+          res.setHeader('Content-Length', file.size);
+          return fs.createReadStream(absolutePath).pipe(res);
+        }
+      }
+
+      if (file.storagePath && (file.storagePath.startsWith('http://') || file.storagePath.startsWith('https://'))) {
+        try {
+          const axios = require('axios');
+          const remoteUrl = encodeURI(file.storagePath);
+          const remoteStream = await axios({
+            method: 'get',
+            url: remoteUrl,
+            responseType: 'stream',
+            timeout: 15000
+          });
+
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName || file.originalName || 'download')}"`);
+          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+          if (file.size) res.setHeader('Content-Length', file.size);
+
+          return remoteStream.data.pipe(res);
+        } catch (streamErr) {
+          console.warn('Failed to stream remote file, redirecting:', streamErr.message);
+          return res.redirect(encodeURI(file.storagePath));
+        }
+      }
+
+      const targetUrl = file.storagePath.startsWith('http')
+        ? file.storagePath
+        : `${req.protocol}://${req.get('host')}${file.storagePath}`;
+      return res.redirect(encodeURI(targetUrl));
     } catch (err) {
       next(err);
     }
@@ -202,7 +238,43 @@ class FileController {
         id
       );
 
-      res.redirect(file.storagePath);
+      if (file.storagePath && file.storagePath.startsWith('/uploads/')) {
+        const relativePath = file.storagePath.replace(/^\/uploads\//, '');
+        const absolutePath = path.join(__dirname, '../uploads', relativePath);
+        if (fs.existsSync(absolutePath)) {
+          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+          res.setHeader('Content-Length', file.size);
+          return fs.createReadStream(absolutePath).pipe(res);
+        }
+      }
+
+      if (file.storagePath && (file.storagePath.startsWith('http://') || file.storagePath.startsWith('https://'))) {
+        try {
+          const axios = require('axios');
+          const remoteUrl = encodeURI(file.storagePath);
+          const remoteStream = await axios({
+            method: 'get',
+            url: remoteUrl,
+            responseType: 'stream',
+            timeout: 15000
+          });
+
+          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+          if (file.size) res.setHeader('Content-Length', file.size);
+
+          return remoteStream.data.pipe(res);
+        } catch (streamErr) {
+          console.warn('Failed to stream remote file inline, redirecting:', streamErr.message);
+          return res.redirect(encodeURI(file.storagePath));
+        }
+      }
+
+      const targetUrl = file.storagePath.startsWith('http')
+        ? file.storagePath
+        : `${req.protocol}://${req.get('host')}${file.storagePath}`;
+      return res.redirect(encodeURI(targetUrl));
     } catch (err) {
       next(err);
     }
@@ -798,9 +870,9 @@ class FileController {
       }
 
       // Check file size limits
-      const MAX_CHUNK_UPLOAD_LIMIT = 5 * 1024 * 1024 * 1024; // 5GB
-      if (fileSize > MAX_CHUNK_UPLOAD_LIMIT) {
-        return next(new AppError('Upload limit is 5GB. Provided file size is too large.', 400));
+      const MAX_SINGLE_FILE_LIMIT = 1 * 1024 * 1024 * 1024; // 1GB limit
+      if (fileSize > MAX_SINGLE_FILE_LIMIT) {
+        return next(new AppError('File size exceeds maximum 1GB upload limit.', 400));
       }
 
       // Validate allowed file extensions
@@ -831,7 +903,7 @@ class FileController {
         return next(new AppError('User not found', 404));
       }
       if (user.storageUsed + fileSize > user.storageLimit) {
-        return next(new AppError('Storage limit exceeded. Cannot initialize upload.', 400));
+        return next(new AppError('Drive storage limit of 5GB exceeded. Please upgrade your plan.', 400));
       }
 
       // Generate a unique upload ID

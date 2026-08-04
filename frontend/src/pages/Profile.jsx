@@ -153,7 +153,7 @@ export const Profile = () => {
       </motion.div>
 
       {/* Interactive Tabs Menu */}
-      <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-800 pb-px">
+      <div className="flex space-x-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
