@@ -42,7 +42,7 @@ const generateVideoThumbnail = (file) => {
     const cleanup = () => {
       try {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
-      } catch (e) {}
+      } catch (e) { }
     };
 
     video.addEventListener('loadeddata', () => {
@@ -577,7 +577,7 @@ export const apiService = {
           onProgress(99, { statusText: 'Assembling file... (99%)' });
         }
 
-        const completeRes = await api.post('/files/upload/chunk/complete', { 
+        const completeRes = await api.post('/files/upload/chunk/complete', {
           uploadId,
           thumbnail: videoThumbnail
         }, { signal });
@@ -753,9 +753,10 @@ export const apiService = {
         return { data: { success: true } };
       } catch (err) {
         console.warn('Axios blob download encountered error, using direct link download:', err);
+        const token = localStorage.getItem('accessToken');
         const fallbackUrl = (typeof id === 'string' && (id.startsWith('http') || id.startsWith('/uploads')))
           ? cleanUrl(id)
-          : cleanUrl(`/api/files/${id}/download`);
+          : cleanUrl(`/api/files/${id}/download?token=${token}`);
         const a = document.createElement('a');
         a.href = fallbackUrl;
         a.target = '_blank';

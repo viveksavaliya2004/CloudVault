@@ -207,7 +207,7 @@ class FileController {
             method: 'get',
             url: remoteUrl,
             responseType: 'stream',
-            timeout: 15000
+            timeout: 30000
           });
 
           res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName || file.originalName || 'download')}"`);
@@ -216,8 +216,8 @@ class FileController {
 
           return remoteStream.data.pipe(res);
         } catch (streamErr) {
-          console.warn('Failed to stream remote file, redirecting:', streamErr.message);
-          return res.redirect(encodeURI(file.storagePath));
+          console.error('Failed to stream remote file:', streamErr.message);
+          return next(new AppError('Failed to retrieve file from cloud storage', 500));
         }
       }
 
