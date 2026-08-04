@@ -95,12 +95,12 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
       signal: pendingItem.abortController?.signal
     }, {
       onSuccess: () => {
-        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'success', progress: 100 } : item));
+        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'success', progress: 100, statusText: '' } : item));
         setTimeout(startNextUpload, 50);
       },
       onError: (err) => {
         const errorMsg = err?.response?.data?.message || 'Upload failed';
-        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'error', errorMsg } : item));
+        setQueue(prev => prev.map(item => item.id === pendingItem.id ? { ...item, status: 'error', errorMsg, statusText: '' } : item));
         setTimeout(startNextUpload, 50);
       }
     });
@@ -252,7 +252,7 @@ export const UploadModal = ({ isOpen, onClose, currentFolderId }) => {
                             <p className="text-[10px] text-slate-455 font-semibold flex-shrink-0">{formatBytes(item.file.size)}</p>
                           </div>
                           
-                          {item.statusText && (
+                          {item.status !== 'success' && item.statusText && (
                             <p className="text-[10px] text-primary font-bold animate-pulse mb-1 flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-primary animate-ping"></span>
                               <span>{item.statusText}</span>

@@ -528,10 +528,10 @@ export const apiService = {
                 onUploadProgress: (progressEvent) => {
                   if (progressEvent.total && onProgress) {
                     const chunkPercent = (progressEvent.loaded / progressEvent.total) * 100;
-                    const overallPercent = Math.round(
-                      (chunkIndex * 100) / totalChunks + chunkPercent / totalChunks
-                    );
-                    onProgress(overallPercent, { statusText: `Uploading: ${overallPercent}%` });
+                    const rawPercent = (chunkIndex * 100) / totalChunks + chunkPercent / totalChunks;
+                    const overallPercent = Math.min(99, Math.round(rawPercent));
+                    const statusText = overallPercent >= 99 ? 'Processing file... (99%)' : `Uploading: ${overallPercent}%`;
+                    onProgress(overallPercent, { statusText });
                   }
                 }
               });
@@ -547,7 +547,7 @@ export const apiService = {
               console.warn(`Chunk upload failed (index: ${chunkIndex}, attempt: ${attempt}). Retrying...`, error);
 
               // Update state in UI to reconnecting
-              const currentProgress = Math.round((chunkIndex * 100) / totalChunks);
+              const currentProgress = Math.min(99, Math.round((chunkIndex * 100) / totalChunks));
               if (onProgress) {
                 onProgress(currentProgress, { statusText: 'Reconnecting... Auto-resuming' });
               }
@@ -574,7 +574,7 @@ export const apiService = {
 
         // 3. Complete chunk upload & trigger assembly
         if (onProgress) {
-          onProgress(99, { statusText: 'Assembling file...' });
+          onProgress(99, { statusText: 'Assembling file... (99%)' });
         }
 
         const completeRes = await api.post('/files/upload/chunk/complete', { 
@@ -603,11 +603,16 @@ export const apiService = {
         signal,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total && onProgress) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            onProgress(percentCompleted, { statusText: `Uploading: ${percentCompleted}%` });
+            const rawPercent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const percentCompleted = Math.min(99, rawPercent);
+            const statusText = percentCompleted >= 99 ? 'Processing file... (99%)' : `Uploading: ${percentCompleted}%`;
+            onProgress(percentCompleted, { statusText });
           }
         }
       });
+      if (onProgress) {
+        onProgress(100, { statusText: 'Complete' });
+      }
       if (response.data && response.data.data) {
         response.data = mapFile(response.data.data.file);
       }
