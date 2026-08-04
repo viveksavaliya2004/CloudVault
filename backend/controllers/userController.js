@@ -108,7 +108,7 @@ class UserController {
   async getSessions(req, res, next) {
     try {
       const currentToken = req.cookies?.refreshToken || req.headers.authorization?.split(' ')[1] || ''; // Since the frontend only sends accessToken in auth header, we check cookie
-      
+
       const mappedSessions = (req.user.sessions || []).map(s => ({
         id: s._id,
         device: s.device || 'Unknown Device',
@@ -129,7 +129,7 @@ class UserController {
   async revokeSession(req, res, next) {
     try {
       const sessionId = req.params.id;
-      
+
       const user = req.user;
       user.sessions = user.sessions.filter(s => s._id.toString() !== sessionId);
       await user.save();

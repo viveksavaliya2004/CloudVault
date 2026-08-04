@@ -26,7 +26,7 @@ export const ForgotPassword = () => {
     if (/[A-Z]/.test(pwd)) score += 1;
     if (/[0-9]/.test(pwd)) score += 1;
     if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-    
+
     if (score <= 1) return { score, label: 'Weak', color: 'bg-rose-500' };
     if (score === 2) return { score, label: 'Fair', color: 'bg-amber-500' };
     if (score === 3) return { score, label: 'Good', color: 'bg-emerald-400' };
@@ -98,20 +98,20 @@ export const ForgotPassword = () => {
           Forgot Password
         </h2>
         <p className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
-          {step === 1 
-            ? "Enter your account email to receive a 6-digit verification code" 
+          {step === 1
+            ? "Enter your account email to receive a 6-digit verification code"
             : `We sent a 6-digit OTP to ${email}`}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-slate-900 py-8 px-6 shadow-xl border border-slate-200/60 dark:border-slate-800 rounded-3xl"
         >
           {errorMsg && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-rose-500 text-xs rounded-xl flex items-center gap-2"
@@ -122,12 +122,12 @@ export const ForgotPassword = () => {
 
           <AnimatePresence mode="wait">
             {step === 1 ? (
-              <motion.form 
+              <motion.form
                 key="step1"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleSendOtp} 
+                onSubmit={handleSendOtp}
                 className="space-y-6"
               >
                 <div>
@@ -167,12 +167,12 @@ export const ForgotPassword = () => {
                 </div>
               </motion.form>
             ) : (
-              <motion.form 
+              <motion.form
                 key="step2"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleResetPassword} 
+                onSubmit={handleResetPassword}
                 className="space-y-5"
               >
                 <div>
@@ -201,8 +201,8 @@ export const ForgotPassword = () => {
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                       New Password
                     </label>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-primary text-xs hover:text-primary-dark transition-colors flex items-center gap-1"
                     >
@@ -229,8 +229,8 @@ export const ForgotPassword = () => {
                     <div className="pt-2 space-y-2">
                       <div className="flex gap-1.5 h-1.5 w-full">
                         {[1, 2, 3, 4].map((level) => (
-                          <div 
-                            key={level} 
+                          <div
+                            key={level}
                             className={`flex-1 rounded-full transition-colors duration-500 ${pwdStrength.score >= level ? pwdStrength.color : 'bg-slate-100 dark:bg-slate-800'}`}
                           />
                         ))}

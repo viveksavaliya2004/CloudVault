@@ -117,6 +117,7 @@ export const UserAvatar = ({ name = 'User', avatar = '', size = 'md', className 
     sm: 'w-8.5 h-8.5 text-xs rounded-full',
     md: 'w-10 h-10 text-sm font-semibold rounded-full',
     lg: 'w-24 h-24 text-3xl font-bold rounded-full',
+    xl: 'w-28 h-28 text-5xl font-bold rounded-full',
   };
 
   const [imageError, setImageError] = React.useState(false);

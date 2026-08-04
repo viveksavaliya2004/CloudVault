@@ -101,11 +101,10 @@ export const AdminLogin = () => {
                 Email
               </label>
               <div
-                className={`relative flex items-center rounded-xl border-2 transition-all duration-200 ${
-                  activeField === 'email'
+                className={`relative flex items-center rounded-xl border-2 transition-all duration-200 ${activeField === 'email'
                     ? 'border-indigo-500 dark:border-indigo-400 bg-white dark:bg-slate-800 shadow-sm shadow-indigo-500/10'
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Mail className={`w-4 h-4 ml-3.5 flex-shrink-0 transition-colors ${activeField === 'email' ? 'text-indigo-500' : 'text-slate-400'}`} />
                 <input
@@ -127,11 +126,10 @@ export const AdminLogin = () => {
                 Password
               </label>
               <div
-                className={`relative flex items-center rounded-xl border-2 transition-all duration-200 ${
-                  activeField === 'password'
+                className={`relative flex items-center rounded-xl border-2 transition-all duration-200 ${activeField === 'password'
                     ? 'border-indigo-500 dark:border-indigo-400 bg-white dark:bg-slate-800 shadow-sm shadow-indigo-500/10'
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Key className={`w-4 h-4 ml-3.5 flex-shrink-0 transition-colors ${activeField === 'password' ? 'text-indigo-500' : 'text-slate-400'}`} />
                 <input
